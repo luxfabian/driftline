@@ -1,0 +1,264 @@
+PERSONAL PROJECT MANAGEMENT TOOL
+REQUIREMENTS SPECIFICATION
+Version: 0.2 (draft)            Date: 2026-10-10
+
+==============================================================================
+1  PURPOSE AND SCOPE
+==============================================================================
+1.1 Purpose
+    A local, single-user tool to plan personal activities, forecast workload
+    against available capacity, and track schedule deviations of tasks and
+    milestones against a baseline.
+
+1.2 In scope (v1)
+    - Task and milestone management (labels, priority, status, comments,
+      at-risk flag, dependency metadata)
+    - Baseline vs. forecast tracking, schedule variance, milestone trend
+      analysis
+    - Workload forecast against plannable capacity
+
+1.3 Out of scope (v1)
+    - Multiple users, authentication, sharing
+    - Automatic scheduling or constraint enforcement from dependencies
+    - Time logging (actual hours spent)
+    - Mobile-optimized UI
+    - Integration with calendars, e-mail or other tools
+
+==============================================================================
+2  CONVENTIONS
+==============================================================================
+    "shall"  = mandatory    "should" = desirable    "may" = optional
+    Verification method in brackets:
+      [T] Test   [D] Demonstration   [I] Inspection   [A] Analysis
+
+==============================================================================
+3  DEFINITIONS
+==============================================================================
+    Working day         Configured working weekday that is not a public
+                        holiday and not inside an absence period.
+    Estimated effort    Initial estimate of the total effort of a task (h).
+    Remaining effort    The user's current estimate of hours still needed.
+    Baseline date       Start/end (task) or target (milestone) date as
+                        committed at creation or at the last re-baseline.
+    Forecast date       Currently expected date.
+    Schedule variance   Forecast date minus baseline date in calendar days.
+                        Positive = late.
+    Open task           Task with status other than Done that is not
+                        archived.
+    Overdue task        Open task whose forecast end date is before today.
+    Plannable capacity  Hours per working day available for planned tasks
+                        (working hours x plannable fraction).
+    Cumulative demand   For a date D: sum of remaining effort of all open
+                        tasks with forecast end date <= D.
+    Load ratio          Cumulative demand due within a horizon divided by
+                        plannable capacity within the same horizon.
+    Review              The user updating remaining effort, status and/or
+                        forecast dates of a task.
+
+==============================================================================
+4  REQUIREMENTS
+==============================================================================
+
+4.1 DATA
+------------------------------------------------------------------------------
+DAT-01  Each task shall have: unique ID (auto-generated), title (mandatory),
+        description, baseline start/end date, forecast start/end date,
+        estimated effort (h), remaining effort (h), status, priority,
+        labels (0..n), predecessor tasks (0..n), at-risk flag with reason,
+        linked milestone (0..1), creation date, last-review date.      [I]
+
+DAT-02  Task status shall be one of: Planned, In progress, Blocked, Done.
+                                                                         [I]
+DAT-03  Priority shall be one of: 1 Critical, 2 High, 3 Medium, 4 Low.
+        Default: 3 Medium.                                               [I]
+
+DAT-04  Labels shall be free text, several per task. When entering a label,
+        the tool shall offer existing labels; matching shall be
+        case-insensitive to avoid duplicates.                            [D]
+
+DAT-05  Each milestone shall have: unique ID, name, description, baseline
+        date, forecast date, status (Open / Achieved), achieved date.    [I]
+
+DAT-06  Dependencies shall be stored as metadata only (predecessor IDs).
+        The tool shall not reschedule tasks or enforce constraints based
+        on them.                                                         [I]
+        Rationale: provides information at minimal software complexity.
+
+DAT-07  All data shall persist locally in a single SQLite file and survive
+        a restart of the tool.                                           [T]
+
+DAT-08  Tasks and milestones shall be archived instead of deleted by
+        default. Archived items shall be hidden from views and excluded from
+        calculations, but their history shall be kept. Archived items shall
+        be restorable. Permanent deletion shall require confirmation.    [T]
+        Rationale: preserves drift history and dependency references.
+
+DAT-09  Every change to baseline dates, forecast dates, remaining effort and
+        status shall be logged with timestamp, old value, new value and an
+        optional reason.                                                 [T]
+        Rationale: needed for milestone trend analysis and delay tracking.
+
+4.2 VALIDATION
+------------------------------------------------------------------------------
+VAL-01  End date shall not be earlier than start date (baseline and
+        forecast).                                                       [T]
+VAL-02  Estimated and remaining effort shall be >= 0.                    [T]
+VAL-03  Setting status Done shall set remaining effort to 0. Setting
+        remaining effort > 0 on a Done task shall reset status to
+        In progress after confirmation.                                  [T]
+VAL-04  Remaining effort may exceed estimated effort; the task shall then be
+        marked as effort overrun.                                        [T]
+VAL-05  Predecessor references shall point to existing tasks; a task shall
+        not reference itself.                                            [T]
+VAL-06  Setting the at-risk flag or status Blocked shall require a reason,
+        which is stored as a comment.                                    [T]
+
+4.3 TASK AND MILESTONE MANAGEMENT
+------------------------------------------------------------------------------
+FUN-01  The user shall be able to create, edit, archive and restore tasks.
+                                                                         [D]
+FUN-02  The user shall be able to create, edit, archive and restore
+        milestones.                                                      [D]
+FUN-03  The user shall be able to add timestamped comments to a task.
+        Comments shall be append-only and shown newest first.            [T]
+FUN-04  The user shall be able to set and clear an at-risk flag on a task.
+        At-risk tasks shall carry a visual marker in all views.          [D]
+FUN-05  The user shall be able to link a task to a milestone.            [D]
+FUN-06  The task detail view shall show the predecessors and successors of
+        the task.                                                        [D]
+FUN-07  The tool should display a warning (no automatic change) when a
+        task's forecast start is earlier than the forecast end of any of its
+        predecessors.                                                    [T]
+
+4.4 VIEWS AND FILTERING
+------------------------------------------------------------------------------
+FUN-08  The tool shall provide a task table sortable by any column.      [D]
+FUN-09  The user shall be able to filter by label (match any / match all),
+        priority, status, at-risk flag, milestone and date range, in any
+        combination. Default filter: all open tasks.                     [T]
+FUN-10  Active filters shall apply to the task table, the timeline and the
+        workload charts. Every chart shall state the active filter.      [T]
+        Rationale: a filtered workload chart is otherwise misleading.
+FUN-11  The tool shall provide a timeline (Gantt) view showing forecast
+        bars, baseline bars as outlines, milestones as markers and a line
+        for today.                                                       [D]
+FUN-12  Overdue tasks shall be highlighted in all views.                 [T]
+
+4.5 SCHEDULE TRACKING
+------------------------------------------------------------------------------
+SCH-01  On creation, baseline dates shall be set equal to the forecast
+        dates.                                                           [T]
+SCH-02  Re-baselining shall be an explicit action (single item or all items)
+        requiring a reason. It shall be logged and earlier baselines shall
+        be retained.                                                     [T]
+SCH-03  The tool shall show schedule variance of start and end dates for
+        each task and of the forecast date for each milestone.           [T]
+SCH-04  The tool shall provide a milestone trend analysis chart: x-axis =
+        reporting date, y-axis = forecast date, one line per milestone,
+        plus the diagonal (reporting date = forecast date). Data shall come
+        from the change history, with values carried forward between
+        changes.                                                         [D]
+SCH-05  Milestone forecast dates shall be entered manually. The tool shall
+        warn when the latest forecast end of the linked open tasks is after
+        the milestone forecast date.                                     [T]
+SCH-06  The tool should list the N most delayed tasks and milestones
+        (default N = 10).                                                [D]
+
+4.6 WORKLOAD FORECAST
+------------------------------------------------------------------------------
+WL-01   The user shall be able to configure: weekly working hours, working
+        weekdays, plannable fraction (default 65 %), absence periods and
+        public holidays.                                                 [T]
+WL-02   Plannable capacity per working day shall be:
+        (weekly working hours / number of working weekdays) x plannable
+        fraction. Non-working days have zero capacity.                   [T]
+WL-03   The tool shall plot cumulative demand against cumulative plannable
+        capacity from today over the selected horizon and highlight periods
+        where demand exceeds capacity, including the shortfall in hours. [T]
+WL-04   Remaining effort of overdue tasks shall count as due today.      [T]
+WL-05   Tasks with status Blocked shall be included in the demand.       [T]
+        Rationale: blocked work still has to be done.
+WL-06   The tool shall provide a weekly stacked bar chart of remaining
+        effort, spread evenly over the working days between
+        max(today, forecast start) and forecast end, with a capacity line.
+        Bars shall be colorable by priority or label. If this interval
+        contains no working day, the effort shall be assigned to the next
+        working day.                                                     [T]
+        Note: WL-03 shows WHETHER the work fits; WL-06 shows WHERE peaks
+        occur. WL-03 alone ignores that work cannot start before its start
+        date, so both views are needed.
+WL-07   The tool shall show a load ratio for a selectable horizon (1-12
+        weeks, default 4) with configurable traffic-light thresholds
+        (default: < 85 % green, 85-100 % amber, > 100 % red).            [T]
+WL-08   Tasks whose last review is older than a configurable period
+        (default 14 days) shall be flagged as stale. The dashboard shall
+        show the number of stale tasks.                                  [T]
+
+4.7 NON-FUNCTIONAL
+------------------------------------------------------------------------------
+NFR-01  The tool shall be implemented in Python 3.11+ using Dash and Plotly,
+        and run locally in a web browser without internet access.        [I]
+NFR-02  The tool shall be single-user without authentication and shall
+        only listen on localhost.                                        [I]
+NFR-03  Tasks, milestones, comments and change history shall be exportable
+        to CSV and Excel.                                                [T]
+NFR-04  On start, the tool shall back up the database file and keep the last
+        N backups (default 10).                                          [T]
+NFR-05  With 500 tasks and 5,000 history entries, every view shall update in
+        under 2 s on a standard laptop.                                  [T]
+NFR-06  Planning dates shall have day granularity (ISO 8601). Comments and
+        history entries shall carry local timestamps.                    [I]
+NFR-07  Data access shall be separated from the user interface. Workload and
+        schedule calculations shall be covered by automated tests.       [I]
+NFR-08  Tasks may be importable from CSV.                                [T]
+
+==============================================================================
+5  TRACEABILITY TO ORIGINAL REQUIREMENTS
+==============================================================================
+    U-01 Based on Python Plotly          -> NFR-01
+    U-02 Workload forecast               -> WL-01 .. WL-08
+    U-03 Create tasks (dates, hours)     -> DAT-01, FUN-01, VAL-01, VAL-02
+    U-04 Labels                          -> DAT-04
+    U-05 Filter by labels                -> FUN-09, FUN-10
+    U-06 Priority                        -> DAT-03
+    U-07 Filter by priority              -> FUN-09, FUN-10
+    U-08 Comments                        -> FUN-03
+    U-09 Mark difficulties               -> DAT-02, FUN-04, VAL-06
+    U-10 Baseline vs. forecast           -> DAT-09, SCH-01 .. SCH-03, FUN-11
+    U-11 Milestone drift                 -> DAT-05, SCH-04, SCH-05
+    (added) Dependencies as metadata     -> DAT-06, FUN-06, FUN-07
+
+==============================================================================
+6  REVIEW LOG (v0.1 consolidated -> v0.2)
+==============================================================================
+R-01  "Working day" undefined, but used in spreading rule
+      -> defined in section 3, configurable in WL-01.
+R-02  Overdue tasks dropped out of the workload forecast
+      -> WL-04, FUN-12.
+R-03  Unclear whether Blocked work counts as demand -> WL-05.
+R-04  Done status and remaining effort could contradict -> VAL-03.
+R-05  Deleting tasks would destroy drift history and break dependency
+      references -> archive instead of delete (DAT-08).
+R-06  Origin of milestone forecast date unclear -> manual entry with
+      consistency warning against linked tasks (SCH-05).
+R-07  Trigger and handling of re-baselining undefined -> SCH-01, SCH-02.
+R-08  Milestone trend chart had no defined data source -> SCH-04 + DAT-09.
+R-09  Filters could silently distort workload charts -> FUN-10.
+R-10  Overlap between Blocked status and at-risk flag -> kept both
+      (Blocked = cannot proceed; at-risk = may slip), both need a reason.
+R-11  Cumulative check ignores task start dates -> both charts kept,
+      limitation stated (note at WL-06).
+R-12  No input validation, no performance, backup or test requirements
+      -> sections 4.2 and 4.7.
+R-13  No verification methods -> added to every requirement.
+R-14  Spreading rule undefined when no working day remains -> WL-06.
+
+==============================================================================
+7  OPEN POINTS
+==============================================================================
+O-01  Should actual hours spent be logged in a later version (would allow
+      calibrating estimates)?
+O-02  Should the plannable fraction vary by week (e.g., meeting-heavy
+      weeks)?
+O-03  Is a gap in a dependency chain (successor starting long after
+      predecessor ends) of interest, or only overlaps (FUN-07)?

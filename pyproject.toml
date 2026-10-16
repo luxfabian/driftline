@@ -1,0 +1,44 @@
+[build-system]
+requires = ["setuptools>=69", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "pmtool"
+version = "0.1.0"
+description = "Personal project management tool: workload forecast and schedule tracking"
+requires-python = ">=3.11"
+readme = "README.md"
+# TODO(spec): replace the ranges with exact pins (==) once the environment is
+# installed and verified; phase 1 itself only needs the standard library.
+dependencies = [
+    "dash>=2.17,<4",
+    "plotly>=5.22,<7",
+    "dash-bootstrap-components>=1.6,<3",
+    "dash-ag-grid>=31,<34",
+    "pandas>=2.2,<4",
+    "openpyxl>=3.1,<4",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8", "ruff>=0.6"]
+
+[project.scripts]
+pmtool = "pmtool.__main__:main"
+
+[tool.setuptools.packages.find]
+include = ["pmtool*"]
+
+[tool.setuptools.package-data]
+"pmtool.db" = ["schema.sql"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+markers = ["perf: performance tests (NFR-05)"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+extend-exclude = ["docs"]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "B", "UP"]
