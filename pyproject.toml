@@ -8,19 +8,18 @@ version = "0.1.0"
 description = "Personal project management tool: workload forecast and schedule tracking"
 requires-python = ">=3.11"
 readme = "README.md"
-# TODO(spec): replace the ranges with exact pins (==) once the environment is
-# installed and verified; phase 1 itself only needs the standard library.
+# Exact pins (architecture_spec §2), verified with Python 3.11.5: all tests green.
 dependencies = [
-    "dash>=2.17,<4",
-    "plotly>=5.22,<7",
-    "dash-bootstrap-components>=1.6,<3",
-    "dash-ag-grid>=31,<34",
-    "pandas>=2.2,<4",
-    "openpyxl>=3.1,<4",
+    "dash==3.4.0",
+    "plotly==6.9.0",
+    "dash-bootstrap-components==2.0.4",
+    "dash-ag-grid==33.3.3",
+    "pandas==3.0.6",
+    "openpyxl==3.1.5",
 ]
 
 [project.optional-dependencies]
-dev = ["pytest>=8", "ruff>=0.6"]
+dev = ["pytest==9.1.1", "ruff==0.17.1"]
 
 [project.scripts]
 pmtool = "pmtool.__main__:main"
