@@ -175,8 +175,12 @@ def build_gantt(
     risk_ids: Iterable[int],
     overdue_ids: Iterable[int] = (),
     dependencies: Iterable[tuple[int, int, bool]] = (),
+    window: tuple[date, date] | None = None,
 ) -> go.Figure:
     """Forecast bars by status inside baseline outlines; milestones as diamonds.
+
+    ``window`` (first, last day, inclusive) fixes the visible date range; ticks
+    adapt to its length (days, weeks or months). None shows everything.
 
     ``dependencies``: (predecessor id, successor id, late) to draw as connectors
     from the predecessor's end to the successor's start; ``late`` = the
@@ -314,8 +318,17 @@ def build_gantt(
 
     _layout(fig, title, filter_text, height=max(320, ROW_PX * len(categories) + 150))
     _today_line(fig, today)
-    fig.update_layout(barmode="overlay", bargap=0.2)
+    fig.update_layout(
+        barmode="overlay",
+        bargap=0.2,
+        # many entries: below the chart, so they never run into the toolbar
+        legend={"orientation": "h", "x": 0, "xanchor": "left", "y": 0, "yanchor": "bottom",
+                "yref": "container", "font": {"size": 12, "color": INK_2}},
+        margin={"l": 12, "r": 24, "t": 70, "b": 90},
+    )  # fmt: skip
     fig.update_xaxes(type="date", tickformat="%d %b", showgrid=True)
+    if window is not None:
+        _apply_window(fig, *window)
     fig.update_yaxes(
         type="category",
         categoryorder="array",
@@ -325,6 +338,19 @@ def build_gantt(
         tickfont={"color": INK_2},
     )
     return fig
+
+
+def _apply_window(fig: go.Figure, first: date, last: date) -> None:
+    days = (last - first).days + 1
+    end = last + timedelta(days=1)  # the last day is fully visible
+    if days <= 7:
+        ticks = {"dtick": DAY_MS, "tickformat": "%a %d", "tick0": first.isoformat()}
+    elif days <= 31:
+        monday = first - timedelta(days=first.weekday())
+        ticks = {"dtick": 7 * DAY_MS, "tickformat": "%d %b", "tick0": monday.isoformat()}
+    else:
+        ticks = {"dtick": "M1", "tickformat": "%b", "tick0": first.isoformat()}
+    fig.update_xaxes(range=[first.isoformat(), end.isoformat()], **ticks)
 
 
 def _add_dependencies(

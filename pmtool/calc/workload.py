@@ -8,6 +8,7 @@ from __future__ import annotations
 
 from collections import defaultdict
 from collections.abc import Iterable, Mapping, Sequence
+from dataclasses import dataclass
 from datetime import date, timedelta
 from typing import Literal
 
@@ -15,7 +16,7 @@ import pandas as pd
 
 from pmtool.calc.calendar import CalendarContext, date_range
 from pmtool.calc.status import is_open
-from pmtool.domain.enums import Priority
+from pmtool.domain.enums import Priority, TaskStatus
 from pmtool.domain.models import Settings, Task
 
 NO_LABEL = "(no label)"
@@ -181,3 +182,80 @@ def _group_order(group_by: str, groups: set[str]) -> dict[str, tuple]:
         rank = {p.label: p.value for p in Priority}
         return {g: (rank.get(g, 99), g) for g in groups}
     return {g: (g == NO_LABEL, g.lower()) for g in groups}
+
+
+# --- the plan for one day (dashboard "Your day") ------------------------------------------
+
+
+@dataclass(frozen=True)
+class DayItem:
+    task_id: int
+    hours: float  # this task's share of the day (WL-06 spreading)
+    due: date  # due_date: overdue work is due today (WL-04)
+    overdue: bool
+    blocked: bool
+    within_capacity: bool  # starts before the day's plannable capacity is used up
+
+
+@dataclass(frozen=True)
+class DayPlan:
+    day: date | None  # today, or the next working day; None if none within a year
+    capacity_h: float
+    items: tuple[DayItem, ...]  # workable tasks in focus order, then blocked ones
+
+    @property
+    def planned_h(self) -> float:
+        return sum(i.hours for i in self.items)
+
+    @property
+    def workable_h(self) -> float:
+        return sum(i.hours for i in self.items if not i.blocked)
+
+
+def plan_day(today: date, calendar_ctx: CalendarContext) -> date | None:
+    """The day to plan: today if it is a working day, else the next working day."""
+    return calendar_ctx.next_working_day(today)
+
+
+def day_plan(tasks: Sequence[Task], today: date, calendar_ctx: CalendarContext) -> DayPlan:
+    """What the workload model puts on the next working day, in the order to work on it.
+
+    Hours per task come from ``daily_allocation`` (same model as the weekly chart).
+    Focus order: priority (Critical first), then due date, then at-risk tasks first,
+    then id. Blocked tasks keep their hours (WL-05) but go last, since they cannot be
+    worked on. ``within_capacity`` marks the workable tasks that start before the
+    running total reaches the day's plannable capacity.
+    """
+    day = plan_day(today, calendar_ctx)
+    if day is None:
+        return DayPlan(None, 0.0, ())
+    allocation = daily_allocation(tasks, today, day, calendar_ctx)
+    hours: dict[int, float] = defaultdict(float)
+    for d, task_id, h in allocation[["date", "task_id", "hours"]].itertuples(index=False):
+        if d == day:
+            hours[task_id] += h
+    by_id = {t.id: t for t in tasks}
+    blocked = TaskStatus.BLOCKED
+
+    def key(task_id: int) -> tuple:
+        t = by_id[task_id]
+        return (t.status is blocked, int(t.priority), due_date(t, today), not t.at_risk, t.id)
+
+    capacity = calendar_ctx.capacity_h(day)
+    items, used = [], 0.0
+    for task_id in sorted(hours, key=key):
+        t = by_id[task_id]
+        is_blocked = t.status is blocked
+        items.append(
+            DayItem(
+                task_id=task_id,
+                hours=hours[task_id],
+                due=due_date(t, today),
+                overdue=t.forecast_end < today,
+                blocked=is_blocked,
+                within_capacity=not is_blocked and used < capacity,
+            )
+        )
+        if not is_blocked:
+            used += hours[task_id]
+    return DayPlan(day, capacity, tuple(items))

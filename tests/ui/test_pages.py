@@ -10,9 +10,15 @@ from pmtool.domain.enums import MilestoneStatus, Priority, TaskStatus
 from pmtool.domain.filters import Filter
 from pmtool.domain.models import Label, Settings, Snapshot
 from pmtool.ui import charts
-from pmtool.ui.pages.dashboard import dashboard_data
+from pmtool.ui.pages.dashboard import dashboard_data, day_section, day_title, due_text
 from pmtool.ui.pages.milestones import dialog_action, milestone_rows, mta_figure
-from pmtool.ui.pages.timeline import clicked_task_id, timeline_figure
+from pmtool.ui.pages.timeline import (
+    clicked_task_id,
+    period_label,
+    shift,
+    timeline_figure,
+    window,
+)
 from pmtool.ui.pages.workload import colored_labels, workload_data, workload_filter
 from tests.factories import TODAY, D, forecast_entry, make_milestone, make_task
 from tests.helpers import T0
@@ -67,6 +73,30 @@ class DashboardDataTest(unittest.TestCase):
         self.assertEqual([(m.id, end) for m, end in data.milestone_warnings],
                          [(ms.id, D("2026-10-20"))])  # fmt: skip
         self.assertEqual([sorted(t.id for t in c) for c in data.cycles], [sorted([a.id, b.id])])
+
+
+class YourDayTest(unittest.TestCase):
+    def test_due_text(self):
+        self.assertEqual(due_text(TODAY, True, D("2026-10-09"), TODAY), "overdue 3 d")
+        self.assertEqual(due_text(TODAY, False, TODAY, TODAY), "due today")
+        self.assertEqual(due_text(D("2026-10-14"), False, D("2026-10-14"), TODAY), "due Wed")
+        self.assertEqual(due_text(D("2026-11-30"), False, D("2026-11-30"), TODAY), "due 30 Nov")
+
+    def test_section_marks_capacity_cut_and_blocked(self):
+        from pmtool.calc.calendar import CalendarContext
+        from pmtool.calc.workload import day_plan
+
+        big = make_task(priority=Priority.CRITICAL, start=TODAY, end=TODAY, hours=6.0, at_risk=True)
+        small = make_task(priority=Priority.LOW, start=TODAY, end=TODAY, hours=1.0)
+        blocked = make_task(status=TaskStatus.BLOCKED, start=TODAY, end=TODAY, hours=1.0)
+        tasks = [big, small, blocked]
+        plan = day_plan(tasks, TODAY, CalendarContext(Settings()))
+        text = str(day_section(plan, {t.id: t for t in tasks}, {}, TODAY))
+        self.assertIn("plannable time ends here", text)
+        self.assertIn("more than fits", text)
+        self.assertIn("Blocked, not workable", text)
+        self.assertIn("⚠", text)  # FUN-04 marker on the at-risk task
+        self.assertEqual(day_title(plan, TODAY), "Your day · Monday, 12 October")
 
 
 class WorkloadFilterTest(unittest.TestCase):
@@ -170,6 +200,30 @@ class MilestonesPageTest(unittest.TestCase):
                          "none")  # fmt: skip
 
 
+class TimeWindowTest(unittest.TestCase):
+    def test_windows(self):
+        wed = D("2026-10-14")
+        self.assertEqual(window(wed, "week"), (D("2026-10-12"), D("2026-10-18")))
+        self.assertEqual(window(wed, "month"), (D("2026-10-01"), D("2026-10-31")))
+        self.assertEqual(window(D("2026-02-10"), "month"), (D("2026-02-01"), D("2026-02-28")))
+        self.assertEqual(window(wed, "year"), (D("2026-01-01"), D("2026-12-31")))
+        self.assertIsNone(window(wed, "all"))
+
+    def test_shift_across_boundaries(self):
+        self.assertEqual(shift(D("2026-12-30"), "week", 1), D("2027-01-06"))
+        self.assertEqual(shift(D("2026-12-31"), "month", 1), D("2027-01-01"))
+        self.assertEqual(shift(D("2026-01-31"), "month", -1), D("2025-12-01"))
+        self.assertEqual(shift(D("2026-03-31"), "month", -1), D("2026-02-01"))  # no Feb 31
+        self.assertEqual(shift(D("2026-10-14"), "year", -1), D("2025-01-01"))
+        self.assertEqual(shift(D("2026-10-14"), "all", 5), D("2026-10-14"))
+
+    def test_labels(self):
+        self.assertEqual(period_label(D("2026-10-14"), "week"), "Week 42 · 12 Oct – 18 Oct 2026")
+        self.assertEqual(period_label(D("2026-10-14"), "month"), "October 2026")
+        self.assertEqual(period_label(D("2026-10-14"), "year"), "2026")
+        self.assertEqual(period_label(D("2026-10-14"), "all"), "All dates")
+
+
 class TimelinePageTest(unittest.TestCase):
     def test_figure_uses_filter_and_milestone_switch(self):
         ms = make_milestone()
@@ -193,6 +247,24 @@ class TimelinePageTest(unittest.TestCase):
         self.assertIn("Late dependency", names)  # succ starts before pred ends
         without = timeline_figure(snap, Filter(), TODAY, False, show_dependencies=False)
         self.assertFalse({"Dependency", "Late dependency"} & {t.name for t in without.data})
+
+    def test_window_shows_only_tasks_in_period_and_fixes_axis(self):
+        inside = make_task(start=D("2026-10-12"), end=D("2026-10-16"))
+        outside = make_task(start=D("2026-12-01"), end=D("2026-12-04"))
+        slipped = replace(
+            make_task(start=D("2026-12-07"), end=D("2026-12-09")),
+            baseline_start=D("2026-10-13"),
+            baseline_end=D("2026-10-14"),
+        )
+        span = window(D("2026-10-14"), "month")
+        fig = timeline_figure(
+            snapshot([inside, outside, slipped]), Filter(), TODAY, False, span=span
+        )
+        rows = {y for trace in fig.data if trace.y for y in trace.y if y}
+        self.assertIn(f"#{inside.id} Task", rows)
+        self.assertIn(f"#{slipped.id} Task", rows)  # its baseline is in October
+        self.assertNotIn(f"#{outside.id} Task", rows)
+        self.assertEqual(list(fig.layout.xaxis.range), ["2026-10-01", "2026-11-01"])
 
     def test_clicked_task_id(self):
         self.assertEqual(clicked_task_id({"points": [{"customdata": [7, "x"]}]}), 7)

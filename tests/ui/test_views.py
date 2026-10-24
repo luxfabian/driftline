@@ -52,6 +52,7 @@ class TaskRowsTest(unittest.TestCase):
         self.assertEqual(row["labels"], "Admin, work")
         self.assertEqual(row["end"], "2026-10-19")
         self.assertEqual(row["end_variance_d"], 3)  # baseline end 2026-10-16
+        self.assertEqual(row["start_variance_d"], 0)  # SCH-03: both variances
 
     def test_overdue_and_at_risk_marked(self):  # FUN-04, FUN-12
         late = make_task(start=D("2026-10-01"), end=D("2026-10-09"))

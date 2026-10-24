@@ -10,6 +10,7 @@ from pmtool.calc.workload import (
     NO_LABEL,
     cumulative_curves,
     daily_allocation,
+    day_plan,
     due_date,
     horizon_end,
     load_level,
@@ -204,6 +205,64 @@ class LoadRatioTest(unittest.TestCase):
         self.assertEqual(load_level(1.0001, s), "red")
         custom = Settings(load_green_max=0.5, load_amber_max=0.7)
         self.assertEqual(load_level(0.6, custom), "amber")
+
+
+class DayPlanTest(unittest.TestCase):
+    """Dashboard "Your day": what the WL-06 spreading puts on the next working day."""
+
+    def test_hours_match_daily_allocation(self):
+        t = make_task(start=TODAY, end=D("2026-10-16"), hours=10.0)  # Mon-Fri: 2 h a day
+        plan = day_plan([t], TODAY, CTX)
+        self.assertEqual(plan.day, TODAY)
+        self.assertEqual(plan.capacity_h, DAY_CAP)
+        self.assertEqual([(i.task_id, i.hours) for i in plan.items], [(t.id, 2.0)])
+
+    def test_weekend_plans_next_monday_and_overdue_lands_there(self):
+        late = make_task(start=D("2026-10-05"), end=D("2026-10-09"), hours=3.0)
+        plan = day_plan([late], SATURDAY, CTX)
+        self.assertEqual(plan.day, D("2026-10-19"))
+        (item,) = plan.items
+        self.assertTrue(item.overdue)
+        self.assertEqual((item.hours, item.due), (3.0, SATURDAY))  # WL-04: due "today"
+
+    def test_focus_order_priority_then_due_then_at_risk(self):
+        low = make_task(priority=Priority.LOW, start=TODAY, end=TODAY, hours=1.0)
+        high_later = make_task(priority=Priority.HIGH, start=TODAY, end=D("2026-10-14"))
+        high_soon = make_task(priority=Priority.HIGH, start=TODAY, end=TODAY, hours=1.0)
+        high_soon_risk = make_task(
+            priority=Priority.HIGH, start=TODAY, end=TODAY, hours=1.0, at_risk=True
+        )
+        blocked = make_task(
+            priority=Priority.CRITICAL, status=TaskStatus.BLOCKED, start=TODAY, end=TODAY, hours=1.0
+        )
+        plan = day_plan([low, high_later, high_soon, high_soon_risk, blocked], TODAY, CTX)
+        self.assertEqual(
+            [i.task_id for i in plan.items],
+            [high_soon_risk.id, high_soon.id, high_later.id, low.id, blocked.id],
+        )
+        self.assertTrue(plan.items[-1].blocked)
+        self.assertFalse(plan.items[-1].within_capacity)  # blocked work is not "workable"
+
+    def test_capacity_cut(self):
+        a = make_task(priority=Priority.CRITICAL, start=TODAY, end=TODAY, hours=4.0)
+        b = make_task(priority=Priority.HIGH, start=TODAY, end=TODAY, hours=3.0)
+        c = make_task(priority=Priority.LOW, start=TODAY, end=TODAY, hours=1.0)
+        plan = day_plan([a, b, c], TODAY, CTX)
+        # a (0-4 h) and b (4-7 h) start within 5.2 h; c starts at 7 h, beyond capacity
+        self.assertEqual([i.within_capacity for i in plan.items], [True, True, False])
+        self.assertAlmostEqual(plan.planned_h, 8.0)
+        self.assertAlmostEqual(plan.workable_h, 8.0)
+
+    def test_future_and_done_tasks_are_not_on_the_day(self):
+        future = make_task(start=D("2026-10-20"), end=D("2026-10-23"))
+        done = make_task(status=TaskStatus.DONE, remaining_effort_h=0.0)
+        self.assertEqual(day_plan([future, done], TODAY, CTX).items, ())
+
+    def test_no_working_day_within_a_year(self):
+        always_away = CalendarContext(Settings(), absences=(Absence(1, TODAY, FAR_END),))
+        plan = day_plan([make_task()], TODAY, always_away)
+        self.assertIsNone(plan.day)
+        self.assertEqual(plan.items, ())
 
 
 if __name__ == "__main__":

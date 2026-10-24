@@ -345,3 +345,51 @@ code { color: var(--pm-violet); font-size: 0.85em; }
   z-index: 1;
 }
 .pm-filterbar .pm-seg { margin-right: 4px; }
+
+/* --- dashboard: your day ------------------------------------------------------ */
+.pm-day-hours { font-size: 1.35rem; font-weight: 500; }
+.pm-verdict { font-weight: 600; }
+.pm-verdict-ok { color: var(--pm-good); }
+.pm-verdict-bad { color: var(--pm-brick); }
+.pm-daybar {
+  position: relative;
+  display: flex;
+  gap: 2px;  /* surface gap between priority segments */
+  height: 12px;
+  border-radius: 6px;
+  background: var(--pm-tint-blue);
+  overflow: visible;
+}
+.pm-daybar-seg { height: 100%; }
+.pm-daybar-seg:first-child { border-radius: 6px 0 0 6px; }
+.pm-daybar-seg:last-of-type { border-radius: 0 6px 6px 0; }
+.pm-daybar-cap {
+  position: absolute;
+  top: -5px;
+  bottom: -5px;
+  width: 2px;
+  margin-left: -1px;
+  background: var(--pm-violet);
+}
+.pm-dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  margin-right: 6px;
+  border-radius: 50%;
+  vertical-align: 1px;
+}
+.pm-daytable { margin-top: 14px; }
+.pm-daytable td { vertical-align: top; }
+.pm-cutline td {
+  padding: 2px 0 !important;
+  border-bottom: 2px solid var(--pm-apricot) !important;
+  color: var(--pm-brick);
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  text-align: right;
+}
+.pm-beyond td { opacity: 0.55; }
+.pm-due-overdue { color: var(--pm-brick); font-weight: 500; }
+.pm-overdue-link { --bs-btn-color: var(--pm-brick); color: var(--pm-brick) !important; }

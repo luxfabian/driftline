@@ -194,6 +194,25 @@ def layout(**_kwargs) -> html.Div:
             dcc.Download(id=ids.EXPORT_DOWNLOAD),
         ],
     )  # fmt: skip
+    baselines = _card(
+        "Baselines",
+        [
+            html.P(
+                "Make the current forecast the new baseline for every open task and "
+                "milestone, e.g. after a re-planning. Earlier baselines stay in each "
+                "item's history. To re-baseline single tasks, select them on the Tasks page.",
+                className="small",
+            ),
+            dbc.InputGroup(
+                [
+                    dbc.Input(id=ids.REBASELINE_ALL_REASON, placeholder="Reason (required)"),
+                    dbc.Button("Re-baseline everything", id=ids.REBASELINE_ALL,
+                               color="secondary", outline=True),
+                ],
+                size="sm",
+            ),
+        ],
+    )  # fmt: skip
     archive = _card(
         "Archived items",
         [
@@ -209,7 +228,10 @@ def layout(**_kwargs) -> html.Div:
         [
             page_header(NAME),
             dbc.Row(
-                [dbc.Col([capacity, absences, holidays], lg=6), dbc.Col([data, archive], lg=6)],
+                [
+                    dbc.Col([capacity, absences, holidays], lg=6),
+                    dbc.Col([data, baselines, archive], lg=6),
+                ],
                 className="g-3",
             ),
         ]
@@ -404,6 +426,20 @@ def register_callbacks(app: Dash, services: Services) -> None:
         if action is None:
             return NO_FEEDBACK
         return run(services, action, version)[1]
+
+    @app.callback(
+        *write_outputs(),
+        Output(ids.REBASELINE_ALL_REASON, "value"),
+        Input(ids.REBASELINE_ALL, "n_clicks"),
+        State(ids.REBASELINE_ALL_REASON, "value"),
+        State(ids.DATA_VERSION, "data"),
+        prevent_initial_call=True,
+    )
+    def rebaseline_all(n, reason, version):
+        if not n:
+            return (*NO_FEEDBACK, no_update)
+        outcome, values = run(services, {"kind": "rebaseline_all", "reason": reason}, version)
+        return (*values, "" if outcome.ok else no_update)
 
     @app.callback(
         Output(ids.EXPORT_DOWNLOAD, "data"),

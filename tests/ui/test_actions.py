@@ -175,6 +175,23 @@ class SmallActionsTest(ServiceTestCase):
         self.assertEqual(execute(self.svc, {"kind": "archive_tasks", "task_ids": []}).status,
                          "error")  # fmt: skip
 
+    def test_rebaseline_all(self):  # SCH-02: "all items" from the UI
+        no_reason = execute(self.svc, {"kind": "rebaseline_all", "reason": " "})
+        self.assertEqual(no_reason.status, "error")
+        execute(
+            self.svc,
+            {
+                "kind": "save_task",
+                "task_id": self.a,
+                "title": "A",
+                "forecast_start": "2026-10-19",
+                "forecast_end": "2026-10-23",
+            },
+        )
+        self.assertTrue(execute(self.svc, {"kind": "rebaseline_all", "reason": "Re-plan"}).ok)
+        t = self.task(self.a)
+        self.assertEqual((t.baseline_start, t.baseline_end), (t.forecast_start, t.forecast_end))
+
     def test_rebaseline_needs_reason(self):
         no_reason = execute(self.svc, {"kind": "rebaseline_tasks", "task_ids": [self.a]})
         self.assertEqual(no_reason.status, "error")

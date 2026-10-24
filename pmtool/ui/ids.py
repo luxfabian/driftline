@@ -106,6 +106,8 @@ def open_task(task_id: int, key: str) -> dict[str, object]:
 # --- dashboard ---------------------------------------------------------------------
 DASH_FILTER_TEXT = "dash-filter-text"
 DASH_KPIS = "dash-kpis"
+DASH_DAY = "dash-day"
+DASH_DAY_TITLE = "dash-day-title"
 DASH_DELAYED = "dash-delayed"
 DASH_MS_WARNINGS = "dash-ms-warnings"
 DASH_DEP_WARNINGS = "dash-dep-warnings"
@@ -114,6 +116,12 @@ DASH_DEP_WARNINGS = "dash-dep-warnings"
 TIMELINE_GRAPH = "timeline-graph"
 TIMELINE_MILESTONES = "timeline-show-milestones"
 TIMELINE_DEPENDENCIES = "timeline-show-dependencies"
+TIMELINE_UNIT = "timeline-unit"
+TIMELINE_PREV = "timeline-prev"
+TIMELINE_NEXT = "timeline-next"
+TIMELINE_TODAY = "timeline-today"
+TIMELINE_PERIOD = "timeline-period"
+TIMELINE_ANCHOR = "timeline-anchor"  # store: ISO date inside the shown period
 
 # --- milestones page ---------------------------------------------------------------
 MS_GRID = "ms-grid"
@@ -178,6 +186,8 @@ IMPORT_TEMPLATE = "import-template"
 IMPORT_RESULT = "import-result"
 ARCHIVED_TASKS = "archived-tasks"
 ARCHIVED_MILESTONES = "archived-milestones"
+REBASELINE_ALL_REASON = "rebaseline-all-reason"
+REBASELINE_ALL = "rebaseline-all"
 ROW_ACTION = "row-action"
 
 

@@ -63,6 +63,18 @@ class GanttTest(unittest.TestCase):
         fig = charts.build_gantt([make_task()], [], TODAY, FILTER_TEXT, risk_ids=())
         self.assertFalse(any(getattr(t, "mode", None) == "lines" for t in fig.data))
 
+    def test_window_ticks_follow_period_length(self):
+        t = make_task()
+        week = charts.build_gantt(
+            [t], [], TODAY, FILTER_TEXT, risk_ids=(), window=(D("2026-10-12"), D("2026-10-18"))
+        )
+        self.assertEqual(list(week.layout.xaxis.range), ["2026-10-12", "2026-10-19"])
+        self.assertEqual(week.layout.xaxis.dtick, charts.DAY_MS)
+        year = charts.build_gantt(
+            [t], [], TODAY, FILTER_TEXT, risk_ids=(), window=(D("2026-01-01"), D("2026-12-31"))
+        )
+        self.assertEqual(year.layout.xaxis.dtick, "M1")
+
     def test_bar_spans_inclusive_end_day(self):
         t = make_task(start=D("2026-10-12"), end=D("2026-10-12"))
         fig = charts.build_gantt([t], [], TODAY, FILTER_TEXT, risk_ids=())

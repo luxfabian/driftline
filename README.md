@@ -51,9 +51,9 @@ drift, blocked, at-risk, stale and overdue tasks), all relative to today. Your o
 
 | Page | What you do there |
 |---|---|
-| **Dashboard** | Load ratio for the next weeks (OK / Tight / Overloaded), counts of overdue, at-risk, blocked and stale tasks, the most delayed items, milestone and dependency warnings. Click a task to open it. |
+| **Dashboard** | Load ratio for the next weeks (OK / Tight / Overloaded), counts of overdue, at-risk, blocked and stale tasks. **Your day**: the work the plan puts on today (or the next working day), split by priority against the plannable hours, in focus order with a line where the day's capacity runs out; blocked work listed apart. Then milestone and dependency warnings and the most delayed items. Click a task to open it. |
 | **Tasks** | Filter bar on top; sortable, filterable table. Click a row for details: edit, labels, milestone, at-risk flag, dependencies, comments and full change history. Select rows to mark them reviewed, re-baseline or archive them. "+ New task" is in the top bar. |
-| **Timeline** | Gantt chart: forecast bars by status inside baseline outlines, milestones as diamonds, today line, and arrows from each task to the tasks that depend on it (red when the successor starts too early). Switches turn milestones and dependencies on or off. Click a bar to open the task. |
+| **Timeline** | Gantt chart: forecast bars by status inside baseline outlines, milestones as diamonds, today line, and arrows from each task to the tasks that depend on it (red when the successor starts too early). Switches turn milestones and dependencies on or off. Show a week, a month, a year or all dates, and step with ‹ › (Today jumps back). Click a bar to open the task. |
 | **Milestones** | Create, edit (with a reason), mark achieved, reopen, re-baseline, archive. The trend chart shows how each forecast moved over time. |
 | **Workload** | Whether the work fits (cumulative demand as bars, the shortfall above capacity in apricot) and where the peaks are (stacked weekly load by priority or label against capacity), for 1–12 weeks. |
 | **Settings** | Working hours and days, plannable share, thresholds, absences, public holidays; export to Excel or CSV; import tasks from CSV; restore or permanently delete archived items. |
@@ -161,6 +161,22 @@ UI iteration (after phase 7)
   on all open work, so filtering never repaints the chart); the rest share "Other".
 - Timeline dependency arrows run from the predecessor's end to the successor's start; links
   to tasks outside the filter are not drawn (the dependency warnings still check them).
+
+Features after phase 7
+- Your day (dashboard): hours per task come from the workload model (each task's remaining
+  effort spread over its working days; overdue work lands on the next working day, WL-04).
+  Focus order: priority, then due date, at-risk first among equals; blocked tasks keep their
+  hours but are listed apart. A task counts as "within capacity" if it starts before the
+  day's plannable hours are used up.
+- Timeline window: a task is shown if its forecast or its baseline touches the period;
+  milestones if their forecast or baseline date falls in it. The chosen period is kept for
+  the browser session.
+- Requirements review: the task table now shows start and end variance (SCH-03), Settings
+  has "Re-baseline everything" for SCH-02's "all items", and the dashboard marks at-risk
+  (⚠) and overdue (brick red) tasks in its lists (FUN-04, FUN-12).
+- Deviation from WL-06: the weekly chart is a stacked line chart instead of stacked bars
+  (requested in the UI iteration); grouping by priority or label and the capacity line are
+  unchanged.
 
 Hardening (phase 7)
 - Any error a page does not handle itself becomes a message in the app ("Something went

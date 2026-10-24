@@ -23,13 +23,14 @@ from pmtool.calc.schedule import (
     top_delayed,
 )
 from pmtool.calc.status import is_open, is_overdue, is_stale
-from pmtool.calc.workload import load_level, load_ratio
-from pmtool.domain.enums import TaskStatus
+from pmtool.calc.workload import DayPlan, day_plan, load_level, load_ratio
+from pmtool.domain.enums import Priority, TaskStatus
 from pmtool.domain.filters import Filter, apply_filter
 from pmtool.domain.models import Milestone, Snapshot, Task
 from pmtool.services import Services
 from pmtool.ui import charts, ids
 from pmtool.ui.components.kpi import load_tile, stat_tile
+from pmtool.ui.formatting import AT_RISK_MARK
 from pmtool.ui.layout import page_header
 
 PATH = "/"
@@ -96,17 +97,27 @@ def layout(**_kwargs) -> html.Div:
             html.Div(id=ids.DASH_KPIS, className="mb-4"),
             dbc.Row(
                 [
-                    dbc.Col(_card("Most delayed", ids.DASH_DELAYED), lg=6),
+                    dbc.Col(
+                        dbc.Card(
+                            [
+                                dbc.CardHeader(id=ids.DASH_DAY_TITLE, className="fw-semibold"),
+                                dbc.CardBody(id=ids.DASH_DAY),
+                            ],
+                            className="mb-3",
+                        ),
+                        lg=7,
+                    ),
                     dbc.Col(
                         [
                             _card("Milestone warnings", ids.DASH_MS_WARNINGS),
                             _card("Dependency warnings", ids.DASH_DEP_WARNINGS),
                         ],
-                        lg=6,
+                        lg=5,
                     ),
                 ],
                 className="g-3",
             ),
+            _card("Most delayed", ids.DASH_DELAYED),
         ]
     )
 
@@ -122,35 +133,57 @@ def kpi_row(data: DashboardData, snap: Snapshot) -> dbc.Row:
     s = snap.settings
     tiles = [
         load_tile(data.ratio, data.level, data.horizon_weeks, s),
-        stat_tile("Overdue", str(data.overdue), "forecast end before today",
-                  charts.STATUS_CRITICAL if data.overdue else None),
-        stat_tile("At risk", str(data.at_risk), "⚠ flagged tasks",
-                  charts.STATUS_WARNING if data.at_risk else None),
-        stat_tile("Blocked", str(data.blocked), "cannot proceed",
-                  charts.STATUS_CRITICAL if data.blocked else None),
-        stat_tile("Stale", str(data.stale), f"not reviewed for {s.stale_after_days}+ days",
-                  charts.STATUS_WARNING if data.stale else None),
-    ]  # fmt: skip
+        stat_tile(
+            "Overdue",
+            str(data.overdue),
+            "forecast end before today",
+            charts.STATUS_CRITICAL if data.overdue else None,
+        ),
+        stat_tile(
+            "At risk",
+            str(data.at_risk),
+            "⚠ flagged tasks",
+            charts.STATUS_WARNING if data.at_risk else None,
+        ),
+        stat_tile(
+            "Blocked",
+            str(data.blocked),
+            "cannot proceed",
+            charts.STATUS_CRITICAL if data.blocked else None,
+        ),
+        stat_tile(
+            "Stale",
+            str(data.stale),
+            f"not reviewed for {s.stale_after_days}+ days",
+            charts.STATUS_WARNING if data.stale else None,
+        ),
+    ]
     return dbc.Row([dbc.Col(t, xs=12, sm=6, xl=True) for t in tiles], className="g-3")
 
 
-def task_link(t: Task, key: str, text: str | None = None) -> dbc.Button:
+def task_link(t: Task, key: str, today: date, text: str | None = None) -> dbc.Button:
+    """Opens the task. At-risk tasks carry ⚠ (FUN-04), overdue ones are brick red (FUN-12)."""
+    label = text or f"#{t.id} {t.title}"
+    if t.at_risk:
+        label = f"{AT_RISK_MARK} {label}"
+    overdue = is_overdue(t, today)
     return dbc.Button(
-        text or f"#{t.id} {t.title}",
+        label,
         id=ids.open_task(t.id, key),
         color="link",
         size="sm",
-        className="p-0 text-start align-baseline",
+        className="p-0 text-start align-baseline" + (" pm-overdue-link" if overdue else ""),
+        title="Overdue" if overdue else None,
     )
 
 
-def delayed_list(items: list[DelayItem], tasks: dict[int, Task]):
+def delayed_list(items: list[DelayItem], tasks: dict[int, Task], today: date):
     if not items:
         return html.P("Nothing is behind its baseline.", className="text-muted small mb-0")
     rows = []
     for item in items:
         if item.kind == "task" and item.id in tasks:
-            name = task_link(tasks[item.id], "delayed")
+            name = task_link(tasks[item.id], f"delayed{item.id}", today)
         else:
             name = html.Span(f"◆ {item.name}")
         rows.append(
@@ -163,15 +196,24 @@ def delayed_list(items: list[DelayItem], tasks: dict[int, Task]):
                 ]
             )
         )
-    head = html.Thead(html.Tr([html.Th("Item"), html.Th("Baseline"), html.Th("Forecast"),
-                               html.Th("Variance", className="text-end")]))  # fmt: skip
+    head = html.Thead(
+        html.Tr(
+            [
+                html.Th("Item"),
+                html.Th("Baseline"),
+                html.Th("Forecast"),
+                html.Th("Variance", className="text-end"),
+            ]
+        )
+    )
     return dbc.Table([head, html.Tbody(rows)], size="sm", className="small mb-0")
 
 
 def milestone_warning_list(items: list[tuple[Milestone, date]]):
     if not items:
-        return html.P("All milestones are later than their open tasks.",
-                      className="text-muted small mb-0")  # fmt: skip
+        return html.P(
+            "All milestones are later than their open tasks.", className="text-muted small mb-0"
+        )
     return html.Ul(
         [
             html.Li(
@@ -179,34 +221,45 @@ def milestone_warning_list(items: list[tuple[Milestone, date]]):
                 f"tasks end {end.isoformat()} (+{(end - m.forecast_date).days} d)"
             )
             for m, end in items
-        ],  # fmt: skip
+        ],
         className="small mb-0",
     )
 
 
-def dependency_warning_list(items: list[tuple[Task, list[Task]]], cycles: list[list[Task]]):
+def dependency_warning_list(
+    items: list[tuple[Task, list[Task]]], cycles: list[list[Task]], today: date
+):
     if not items and not cycles:
-        return html.P("No task starts before its predecessors end.",
-                      className="text-muted small mb-0")  # fmt: skip
+        return html.P(
+            "No task starts before its predecessors end.", className="text-muted small mb-0"
+        )
     entries = [
         html.Li(
             [
-                task_link(t, f"dep{i}"),
+                task_link(t, f"dep{i}", today),
                 " starts ",
                 t.forecast_start.isoformat(),
                 ", before ",
-                *_join([task_link(p, f"dep{i}-{j}", f"#{p.id}") for j, p in enumerate(preds)]),
+                *_join(
+                    [task_link(p, f"dep{i}-{j}", today, f"#{p.id}") for j, p in enumerate(preds)]
+                ),
                 " end",
                 "s" if len(preds) == 1 else "",
             ]
-        )  # fmt: skip
+        )
         for i, (t, preds) in enumerate(items)
     ]
     entries += [
-        html.Li(["Dependency loop: ",
-                 *_join([task_link(t, f"loop{i}-{j}", f"#{t.id}") for j, t in enumerate(cycle)])])
+        html.Li(
+            [
+                "Dependency loop: ",
+                *_join(
+                    [task_link(t, f"loop{i}-{j}", today, f"#{t.id}") for j, t in enumerate(cycle)]
+                ),
+            ]
+        )
         for i, cycle in enumerate(cycles)
-    ]  # fmt: skip
+    ]
     return html.Ul(entries, className="small mb-0")
 
 
@@ -219,6 +272,177 @@ def _join(parts: list) -> list:
     return result
 
 
+# --- "Your day": what to work on, in which order --------------------------------------
+
+
+def day_title(plan: DayPlan, today: date) -> str:
+    if plan.day is None:
+        return "Your day"
+    if plan.day == today:
+        return f"Your day · {plan.day:%A, %d %B}"
+    return f"Your next working day · {plan.day:%A, %d %B}"
+
+
+def due_text(due: date, overdue: bool, forecast_end: date, today: date) -> str:
+    if overdue:
+        days = (today - forecast_end).days
+        return f"overdue {days} d"
+    if due == today:
+        return "due today"
+    if (due - today).days < 7:
+        return f"due {due:%a}"
+    return f"due {due:%d %b}"
+
+
+def priority_bar(plan: DayPlan, tasks: dict[int, Task]) -> html.Div:
+    """Workable hours of the day split by priority, with a mark where capacity ends."""
+    by_priority = dict.fromkeys(Priority, 0.0)
+    for item in plan.items:
+        if not item.blocked:
+            by_priority[tasks[item.task_id].priority] += item.hours
+    scale = max(plan.workable_h, plan.capacity_h, 1e-9)
+    segments = [
+        html.Div(
+            className="pm-daybar-seg",
+            title=f"{p.label}: {h:.1f} h",
+            style={
+                "width": f"{100 * h / scale:.2f}%",
+                "background": charts.PRIORITY_COLORS[p.label],
+            },
+        )
+        for p, h in by_priority.items()
+        if h > 0
+    ]
+    marker = html.Div(
+        className="pm-daybar-cap",
+        title=f"Plannable: {plan.capacity_h:.1f} h",
+        style={"left": f"{100 * plan.capacity_h / scale:.2f}%"},
+    )
+    legend = [
+        html.Span(
+            [
+                html.Span(
+                    className="pm-dot", style={"background": charts.PRIORITY_COLORS[p.label]}
+                ),
+                f"{p.label} {h:.1f} h",
+            ],
+            className="me-3",
+        )
+        for p, h in by_priority.items()
+        if h > 0
+    ]
+    return html.Div(
+        [
+            html.Div([*segments, marker], className="pm-daybar"),
+            html.Div(legend, className="pm-hint mt-1"),
+        ]
+    )
+
+
+def day_section(
+    plan: DayPlan, tasks: dict[int, Task], milestone_names: dict[int, str], today: date
+) -> list:
+    """Summary, priority bar, focus list with the capacity cut, then blocked work."""
+    if plan.day is None:
+        return [
+            html.P(
+                "No working day within the next year (check absences in Settings).",
+                className="text-muted mb-0",
+            )
+        ]
+    if not plan.items:
+        return [
+            html.P(
+                "Nothing is planned for this day. A good moment to review the backlog.",
+                className="text-muted mb-0",
+            )
+        ]
+    over = plan.workable_h - plan.capacity_h
+    if plan.capacity_h <= 0:
+        verdict = html.Span("no plannable time", className="pm-verdict pm-verdict-bad")
+    elif over > 0.05:
+        verdict = html.Span(f"✕ {over:.1f} h more than fits", className="pm-verdict pm-verdict-bad")
+    else:
+        verdict = html.Span(f"✓ fits, {-over:.1f} h to spare", className="pm-verdict pm-verdict-ok")
+    summary = html.Div(
+        [
+            html.Span(f"{plan.workable_h:.1f} h", className="pm-day-hours"),
+            html.Span(f" of work · {plan.capacity_h:.1f} h plannable · ", className="text-muted"),
+            verdict,
+        ],
+        className="mb-2",
+    )
+
+    rows, cut_done, rank = [], False, 0
+    for item in plan.items:
+        if item.blocked:
+            continue
+        t = tasks[item.task_id]
+        if not item.within_capacity and not cut_done:
+            rows.append(
+                html.Tr(html.Td("plannable time ends here", colSpan=5), className="pm-cutline")
+            )
+            cut_done = True
+        rank += 1
+        rows.append(
+            html.Tr(
+                [
+                    html.Td(str(rank), className="text-muted tabular"),
+                    html.Td(
+                        [
+                            task_link(t, f"day{t.id}", today),
+                            html.Div(milestone_names.get(t.milestone_id, ""), className="pm-hint"),
+                        ]
+                    ),
+                    html.Td(
+                        [
+                            html.Span(
+                                className="pm-dot",
+                                style={"background": charts.PRIORITY_COLORS[t.priority.label]},
+                            ),
+                            t.priority.label,
+                        ]
+                    ),
+                    html.Td(f"{item.hours:.1f} h", className="text-end tabular"),
+                    html.Td(
+                        due_text(item.due, item.overdue, t.forecast_end, today),
+                        className="pm-due-overdue" if item.overdue else "text-muted",
+                    ),
+                ],
+                className="" if item.within_capacity else "pm-beyond",
+            )
+        )
+    focus = dbc.Table(html.Tbody(rows), size="sm", className="small mb-0 pm-daytable")
+    blocked = [i for i in plan.items if i.blocked]
+    extra = []
+    if blocked:
+        extra.append(
+            html.Div(
+                [
+                    html.Span("Blocked, not workable: ", className="text-muted"),
+                    *_join(
+                        [
+                            html.Span(
+                                [
+                                    task_link(tasks[i.task_id], f"dayb{i.task_id}", today),
+                                    f" ({i.hours:.1f} h)",
+                                ]
+                            )
+                            for i in blocked
+                        ]
+                    ),
+                ],
+                className="small mt-2",
+            )
+        )
+    hint = html.Div(
+        "Order: priority, then due date (at-risk first). Hours follow the workload model: "
+        "each task's remaining effort spread over its working days.",
+        className="pm-hint mt-2",
+    )
+    return [summary, priority_bar(plan, tasks), focus, *extra, hint]
+
+
 # --- callbacks ---------------------------------------------------------------------
 
 
@@ -228,6 +452,8 @@ def register_callbacks(app: Dash, services: Services) -> None:
     @app.callback(
         Output(ids.DASH_FILTER_TEXT, "children"),
         Output(ids.DASH_KPIS, "children"),
+        Output(ids.DASH_DAY_TITLE, "children"),
+        Output(ids.DASH_DAY, "children"),
         Output(ids.DASH_DELAYED, "children"),
         Output(ids.DASH_MS_WARNINGS, "children"),
         Output(ids.DASH_DEP_WARNINGS, "children"),
@@ -235,13 +461,16 @@ def register_callbacks(app: Dash, services: Services) -> None:
     )
     def refresh(_version):
         snap = services.snapshot.load()
-        data = dashboard_data(snap, Filter(), clock.today(), clock.now())  # all open work
-        tasks = {t.id: t for t in snap.tasks}
         today = clock.today()
+        data = dashboard_data(snap, Filter(), today, clock.now())  # all open work
+        tasks = {t.id: t for t in snap.tasks}
+        plan = day_plan(snap.tasks, today, CalendarContext.from_snapshot(snap))
         return (
             f"All open work · {today:%A, %d %B %Y}",
             kpi_row(data, snap),
-            delayed_list(data.delayed, tasks),
+            day_title(plan, today),
+            day_section(plan, tasks, {m.id: m.name for m in snap.milestones}, today),
+            delayed_list(data.delayed, tasks, today),
             milestone_warning_list(data.milestone_warnings),
-            dependency_warning_list(data.dependency_warnings, data.cycles),
+            dependency_warning_list(data.dependency_warnings, data.cycles, today),
         )

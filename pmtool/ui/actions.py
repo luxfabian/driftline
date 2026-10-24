@@ -251,6 +251,11 @@ def _delete_milestone(services: Services, a: Action, confirmed: bool) -> tuple[s
     return f"Milestone {milestone_id} deleted permanently.", None
 
 
+def _rebaseline_all(services: Services, a: Action, confirmed: bool) -> tuple[str, str]:
+    batch_id = services.baselines.rebaseline_all(a.get("reason") or "")  # SCH-02, R-08
+    return "All open tasks and milestones re-baselined.", batch_id
+
+
 _HANDLERS: dict[str, Callable[[Services, Action, bool], tuple[str, Any]]] = {
     "create_task": _create_task,
     "save_task": _save_task,
@@ -261,6 +266,7 @@ _HANDLERS: dict[str, Callable[[Services, Action, bool], tuple[str, Any]]] = {
     "archive_tasks": _archive,
     "restore_tasks": _restore,
     "rebaseline_tasks": _rebaseline,
+    "rebaseline_all": _rebaseline_all,
     "create_milestone": _create_milestone,
     "update_milestone": _update_milestone,
     "achieve_milestone": _achieve_milestone,
