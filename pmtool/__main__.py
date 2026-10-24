@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import importlib.util
 import logging
 import sys
 from pathlib import Path
@@ -12,6 +11,8 @@ from pmtool.config import Config, load_config, setup_logging
 from pmtool.db.backup import backup_on_start, read_keep_count
 from pmtool.db.connection import connect
 from pmtool.db.migrations import apply_migrations, ensure_settings_row
+from pmtool.services import build_services
+from pmtool.ui.app import create_app
 
 logger = logging.getLogger("pmtool")
 
@@ -42,16 +43,9 @@ def main(argv: list[str] | None = None) -> int:
     clock = SystemClock()
     db_path = startup(config, clock)
 
-    # Steps 6-7 (services + Dash app) arrive in phases 2 and 4.
-    if importlib.util.find_spec("pmtool.ui.app") is None:
-        logger.info("UI not implemented yet (phase 4). Database initialised; exiting.")
-        return 0
-
-    from pmtool.services import build_services  # noqa: PLC0415 - available from phase 2
-    from pmtool.ui.app import create_app  # noqa: PLC0415 - available from phase 4
-
     services = build_services(db_path, clock)
     app = create_app(services)
+    logger.info("Open http://%s:%s in your browser", config.host, config.port)
     app.run(host=config.host, port=config.port, debug=False)  # localhost only [NFR-02]
     return 0
 

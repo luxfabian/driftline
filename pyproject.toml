@@ -29,6 +29,7 @@ include = ["pmtool*"]
 
 [tool.setuptools.package-data]
 "pmtool.db" = ["schema.sql"]
+"pmtool.ui" = ["assets/*"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
