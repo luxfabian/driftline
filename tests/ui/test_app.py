@@ -68,8 +68,13 @@ class AppSmokeTest(unittest.TestCase):
         self.assertEqual(self.client.get("/_dash-dependencies").status_code, 200)
 
     def test_no_duplicate_ids(self):
-        dupes = [i for i, n in Counter(self.all_ids()).items() if n > 1]
-        self.assertEqual(dupes, [])
+        """Only one page is in the browser at a time: check the shell plus each page."""
+        shell = component_ids(self.app.layout)
+        for page in PAGES:
+            with self.subTest(page=page.NAME):
+                ids_on_screen = shell + component_ids(page.layout())
+                dupes = [i for i, n in Counter(ids_on_screen).items() if n > 1]
+                self.assertEqual(dupes, [])
 
     def test_every_callback_id_exists_in_a_layout(self):
         missing = callback_ids(self.app) - set(self.all_ids())

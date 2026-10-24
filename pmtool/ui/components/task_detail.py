@@ -17,7 +17,8 @@ from pmtool.domain.enums import ChangeKind, CommentKind, TaskStatus
 from pmtool.domain.models import ChangeLogEntry, Comment, Task, TaskDetail
 from pmtool.errors import NotFound
 from pmtool.services import Services
-from pmtool.ui import ids
+from pmtool.ui import ids, theme
+from pmtool.ui.charts import TASK_STATUS_COLORS
 from pmtool.ui.components.task_form import form_fields, register_label_options
 from pmtool.ui.feedback import NO_FEEDBACK, run, write_outputs
 from pmtool.ui.formatting import (
@@ -35,20 +36,16 @@ from pmtool.ui.formatting import (
 )
 
 FORM = ids.EDIT_FORM
+LIGHT_STATUSES = {TaskStatus.PLANNED, TaskStatus.DONE}  # pale fills need dark text
 
-STATUS_COLORS = {
-    TaskStatus.PLANNED: "secondary",
-    TaskStatus.IN_PROGRESS: "primary",
-    TaskStatus.BLOCKED: "danger",
-    TaskStatus.DONE: "success",
-}
+STATUS_COLORS = TASK_STATUS_COLORS  # same colors as the timeline bars
 FLAG_COLORS = {
-    FLAG_ARCHIVED: "dark",
-    FLAG_AT_RISK: "warning",
-    FLAG_OVERDUE: "danger",
-    FLAG_DEPENDENCY: "warning",
-    FLAG_STALE: "secondary",
-    FLAG_OVERRUN: "info",
+    FLAG_ARCHIVED: theme.INK_2,
+    FLAG_AT_RISK: theme.GOLDEN_YELLOW,
+    FLAG_OVERDUE: theme.BRICK_RED,
+    FLAG_DEPENDENCY: theme.APRICOT_ORANGE,
+    FLAG_STALE: theme.MUTED,
+    FLAG_OVERRUN: theme.VIOLET_BLUE,
 }
 COMMENT_KINDS = {
     CommentKind.NOTE: "Note",
@@ -178,10 +175,21 @@ def layout() -> dbc.Offcanvas:
 
 def badges(task: Task, flags: Sequence[str]) -> list:
     items = [
-        dbc.Badge(task.status.label, color=STATUS_COLORS[task.status]),
+        dbc.Badge(
+            task.status.label,
+            color=STATUS_COLORS[task.status],
+            text_color="dark" if task.status in LIGHT_STATUSES else None,
+        ),
         dbc.Badge(f"Priority {priority_label(task.priority)}", color="light", text_color="dark"),
     ]
-    items += [dbc.Badge(f, color=FLAG_COLORS.get(f, "secondary")) for f in flags]
+    items += [
+        dbc.Badge(
+            f,
+            color=FLAG_COLORS.get(f, theme.MUTED),
+            text_color="dark" if f == FLAG_AT_RISK else None,
+        )
+        for f in flags
+    ]
     return items
 
 

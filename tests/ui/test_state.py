@@ -9,7 +9,7 @@ from datetime import date
 from pmtool.domain.enums import TaskStatus
 from pmtool.domain.filters import Filter
 from pmtool.ui import ids
-from pmtool.ui.state import filter_from_controls, filter_from_store, filter_to_store, parse_date
+from pmtool.ui.state import filter_from_store, filter_to_store, merge_into_store, parse_date
 
 
 class FilterStoreTest(unittest.TestCase):
@@ -47,20 +47,25 @@ class FilterStoreTest(unittest.TestCase):
         self.assertIsNone(f.date_from)
 
 
-class FilterControlsTest(unittest.TestCase):
-    def test_initial_controls_give_default_filter(self):
-        f = filter_from_controls([], "any", [], ["planned", "in_progress", "blocked"],
-                                 False, [], None, None, False)  # fmt: skip
-        self.assertTrue(f.is_default)
+class MergeIntoStoreTest(unittest.TestCase):
+    def test_only_given_fields_change(self):
+        store = filter_to_store(
+            Filter(statuses=frozenset({TaskStatus.DONE}), date_from=date(2026, 10, 1))
+        )
+        merged = merge_into_store(store, {"labels": [2, 1], "priorities": [1]})
+        f = filter_from_store(merged)
+        self.assertEqual((f.labels, f.priorities), (frozenset({1, 2}), frozenset({1})))
+        self.assertEqual(f.statuses, frozenset({TaskStatus.DONE}))  # kept
+        self.assertEqual(f.date_from, date(2026, 10, 1))  # kept
 
-    def test_no_status_ticked_means_no_restriction(self):
-        f = filter_from_controls(None, None, None, [], None, None, None, None, None)
-        self.assertEqual(f.statuses, frozenset())
+    def test_empty_status_list_means_no_restriction(self):
+        merged = merge_into_store(None, {"statuses": []})
+        self.assertEqual(filter_from_store(merged).statuses, frozenset())
 
-    def test_date_inputs(self):
-        f = filter_from_controls(None, None, None, None, None, None, "2026-10-01", "", None)
-        self.assertEqual(f.date_from, date(2026, 10, 1))
-        self.assertIsNone(f.date_to)
+    def test_unknown_fields_are_ignored_and_values_cleaned(self):
+        merged = merge_into_store(None, {"bogus": 1, "date_to": "", "at_risk_only": None})
+        self.assertNotIn("bogus", merged)
+        self.assertTrue(filter_from_store(merged).is_default)
 
 
 class ParseDateTest(unittest.TestCase):

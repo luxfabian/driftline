@@ -3,12 +3,12 @@
 No data loading or calculation happens here. Every builder puts the active
 filter text in the chart subtitle [FUN-10].
 
-Colors follow the job they do (reference palette of the dataviz method):
-task status is a state -> reserved status colors; priority is ordered -> one
-blue ramp, darkest = Critical; labels and milestones are identities -> the
-categorical slots in fixed order, keyed by entity so a filter never repaints
-the survivors. Red (blocked) vs. green (done) is not CVD-safe on its own, so
-blocked bars also carry a 45° hatch and every series has a legend entry.
+Colors (``ui/theme.py``, Wada No. 309) follow the job they do: task status is
+a state -> quiet tints for planned/done, Vandar Poel's Blue for work in
+progress, Apricot for blocked (also hatched), Brick Red reserved for overdue;
+priority is ordered -> one blue ramp, darkest = Critical; labels and
+milestones are identities -> categorical slots in fixed order, keyed by the
+entity so a filter never repaints the others.
 """
 
 from __future__ import annotations
@@ -22,47 +22,35 @@ import plotly.graph_objects as go
 from pmtool.calc.schedule import milestone_variance, task_variance
 from pmtool.domain.enums import Priority, TaskStatus
 from pmtool.domain.models import Milestone, Task
+from pmtool.ui import theme
 
 # --- palette ------------------------------------------------------------------------
 
-SURFACE = "#fcfcfb"
-INK = "#0b0b0b"
-INK_2 = "#52514e"
-MUTED = "#898781"
-GRID = "#e1e0d9"
-AXIS = "#c3c2b7"
-FONT = 'system-ui, -apple-system, "Segoe UI", sans-serif'
+SURFACE = theme.SURFACE
+INK = theme.INK
+INK_2 = theme.INK_2
+MUTED = theme.MUTED
+GRID = theme.HAIRLINE
+AXIS = theme.AXIS
+FONT = theme.FONT_FAMILY
 
-CATEGORICAL = (
-    "#2a78d6",
-    "#eb6834",
-    "#1baf7a",
-    "#eda100",
-    "#e87ba4",
-    "#008300",
-    "#6250d6",
-    "#e34948",
-)
+CATEGORICAL = theme.CATEGORICAL
 OTHER = "Other"
-OTHER_COLOR = MUTED
+OTHER_COLOR = "#a9a6b3"
 
-STATUS_GOOD, STATUS_WARNING, STATUS_CRITICAL = "#0ca30c", "#fab219", "#d03b3b"
+STATUS_GOOD, STATUS_WARNING, STATUS_CRITICAL = theme.GOOD, theme.WARNING, theme.CRITICAL
 TASK_STATUS_COLORS = {
-    TaskStatus.PLANNED: MUTED,
-    TaskStatus.IN_PROGRESS: CATEGORICAL[0],
-    TaskStatus.BLOCKED: STATUS_CRITICAL,
-    TaskStatus.DONE: STATUS_GOOD,
+    TaskStatus.PLANNED: "#8cb8d2",
+    TaskStatus.IN_PROGRESS: "#006692",
+    TaskStatus.BLOCKED: "#de6e28",
+    TaskStatus.DONE: "#b9b6c4",
 }
-# Ordinal ramp (validated with --ordinal): Critical darkest.
-PRIORITY_COLORS = {
-    Priority.CRITICAL.label: "#104281",
-    Priority.HIGH.label: "#256abf",
-    Priority.MEDIUM.label: "#5598e7",
-    Priority.LOW.label: "#86b6ef",
-}
-TODAY_COLOR = CATEGORICAL[1]
-DEMAND_COLOR = CATEGORICAL[0]
-CAPACITY_COLOR = INK_2
+PRIORITY_COLORS = dict(zip([p.label for p in Priority], theme.PRIORITY_RAMP, strict=True))
+TODAY_COLOR = theme.APRICOT_ORANGE
+DEMAND_COLOR = "#006692"
+SHORTFALL_COLOR = "#de6e28"
+CAPACITY_COLOR = theme.VIOLET_BLUE
+LINK_COLOR = theme.VIOLET_BLUE
 
 DAY_MS = 24 * 60 * 60 * 1000
 ROW_PX = 30
@@ -72,33 +60,50 @@ MULTI_LABEL_NOTE = "tasks with several labels appear in each"
 def categorical_colors(keys: Iterable) -> dict:
     """Fixed-order slots for entities in a stable order (e.g. all ids sorted).
 
-    Up to eight entities get one slot each; with more, the first seven keep a
-    slot and the rest share the "Other" gray (never a generated ninth hue).
+    Up to seven entities get one slot each; with more, the first six keep a
+    slot and the rest share the "Other" gray (never a generated extra hue).
     """
     ordered = list(dict.fromkeys(keys))
     slots = CATEGORICAL if len(ordered) <= len(CATEGORICAL) else CATEGORICAL[:-1]
     return {k: (slots[i] if i < len(slots) else OTHER_COLOR) for i, k in enumerate(ordered)}
 
 
+def _rgba(hex_color: str, alpha: float) -> str:
+    r, g, b = (int(hex_color[i : i + 2], 16) for i in (1, 3, 5))
+    return f"rgba({r},{g},{b},{alpha})"
+
+
 # --- shared layout ----------------------------------------------------------------------
 
 
-def _layout(fig: go.Figure, title: str, filter_text: str, height: int = 420) -> go.Figure:
+def _layout(fig: go.Figure, title: str, filter_text: str, height: int = 400) -> go.Figure:
     fig.update_layout(
         title={
             "text": title,
-            "subtitle": {"text": f"Filter: {filter_text}"},
-            "x": 0,
+            "subtitle": {"text": f"Filter: {filter_text}", "font": {"color": MUTED, "size": 12}},
+            "x": 0.01,
             "xanchor": "left",
-            "font": {"size": 16, "color": INK},
+            "font": {"size": 15, "color": INK, "weight": 500},
         },
         font={"family": FONT, "color": INK_2, "size": 12},
         paper_bgcolor=SURFACE,
         plot_bgcolor=SURFACE,
         height=height,
-        margin={"l": 10, "r": 20, "t": 80, "b": 40},
-        legend={"orientation": "h", "yanchor": "bottom", "y": 1.0, "xanchor": "right", "x": 1},
-        hoverlabel={"bgcolor": "white", "font": {"family": FONT, "color": INK}},
+        margin={"l": 12, "r": 24, "t": 84, "b": 36},
+        legend={
+            "orientation": "h",
+            "yanchor": "bottom",
+            "y": 1.02,
+            "xanchor": "right",
+            "x": 1,
+            "font": {"size": 12, "color": INK_2},
+            "bgcolor": "rgba(0,0,0,0)",
+        },
+        hoverlabel={
+            "bgcolor": SURFACE,
+            "bordercolor": GRID,
+            "font": {"family": FONT, "color": INK, "size": 12},
+        },
     )
     axis = {
         "gridcolor": GRID,
@@ -106,14 +111,15 @@ def _layout(fig: go.Figure, title: str, filter_text: str, height: int = 420) -> 
         "linecolor": AXIS,
         "zeroline": False,
         "tickfont": {"color": MUTED},
-        "title": {"font": {"color": INK_2}},
+        "title": {"font": {"color": INK_2, "size": 12}},
     }
     fig.update_xaxes(**axis)
     fig.update_yaxes(**axis)
     return fig
 
 
-def _today_line(fig: go.Figure, today: date) -> None:
+def _today_line(fig: go.Figure, today: date, label_at: str = "top") -> None:
+    """Vertical today line; the label sits inside the plot at the top or bottom."""
     fig.add_shape(
         type="line",
         x0=today,
@@ -121,16 +127,17 @@ def _today_line(fig: go.Figure, today: date) -> None:
         y0=0,
         y1=1,
         yref="paper",
-        line={"color": TODAY_COLOR, "width": 2},
+        line={"color": TODAY_COLOR, "width": 1.5},
+        layer="below",
     )
     fig.add_annotation(  # inside the plot, so it never collides with the legend
         x=today,
-        y=1,
+        y=1 if label_at == "top" else 0,
         yref="paper",
         text="Today",
         showarrow=False,
         xanchor="left",
-        yanchor="top",
+        yanchor="top" if label_at == "top" else "bottom",
         xshift=4,
         bgcolor=SURFACE,
         font={"color": INK_2, "size": 11},
@@ -142,7 +149,7 @@ def _short(text: str, n: int = 40) -> str:
 
 
 def empty_figure(title: str, filter_text: str, message: str) -> go.Figure:
-    fig = _layout(go.Figure(), title, filter_text, height=260)
+    fig = _layout(go.Figure(), title, filter_text, height=240)
     fig.add_annotation(
         text=message,
         showarrow=False,
@@ -157,7 +164,7 @@ def empty_figure(title: str, filter_text: str, message: str) -> go.Figure:
     return fig
 
 
-# --- Gantt [FUN-11] ---------------------------------------------------------------------
+# --- Gantt [FUN-11, FUN-06/07] ---------------------------------------------------------------
 
 
 def build_gantt(
@@ -167,10 +174,14 @@ def build_gantt(
     filter_text: str,
     risk_ids: Iterable[int],
     overdue_ids: Iterable[int] = (),
+    dependencies: Iterable[tuple[int, int, bool]] = (),
 ) -> go.Figure:
     """Forecast bars by status inside baseline outlines; milestones as diamonds.
 
-    Task bars carry ``customdata[0]`` = task id (for click-to-open).
+    ``dependencies``: (predecessor id, successor id, late) to draw as connectors
+    from the predecessor's end to the successor's start; ``late`` = the
+    successor starts before the predecessor ends (FUN-07). Only links between
+    shown tasks are drawn. Task bars carry ``customdata[0]`` = task id.
     """
     title = "Timeline"
     if not tasks and not milestones:
@@ -191,8 +202,8 @@ def build_gantt(
                 y=[row[t.id] for t in ordered],
                 base=[t.baseline_start.isoformat() for t in ordered],
                 x=[_span_ms(t.baseline_start, t.baseline_end) for t in ordered],
-                width=0.72,
-                marker={"color": "rgba(0,0,0,0)", "line": {"color": INK_2, "width": 1}},
+                width=0.7,
+                marker={"color": "rgba(0,0,0,0)", "line": {"color": AXIS, "width": 1.2}},
                 hoverinfo="skip",
             )
         )
@@ -219,6 +230,7 @@ def build_gantt(
                         "fgcolor": SURFACE,
                         "size": 6,
                     },
+                    "cornerradius": 3,
                 },
                 customdata=[_task_hover(t, t.id in overdue, t.id in risk) for t in group],
                 hovertemplate=(
@@ -229,6 +241,7 @@ def build_gantt(
                 ),
             )
         )
+    _add_dependencies(fig, ordered, row, dependencies)
     at_risk = [t for t in ordered if t.id in risk]
     if at_risk:
         fig.add_trace(
@@ -239,7 +252,7 @@ def build_gantt(
                 x=[(t.forecast_end + timedelta(days=1, hours=12)).isoformat() for t in at_risk],
                 marker={
                     "symbol": "triangle-up",
-                    "size": 12,
+                    "size": 11,
                     "color": STATUS_WARNING,
                     "line": {"color": INK, "width": 1},
                 },
@@ -250,7 +263,7 @@ def build_gantt(
     if overdue & {t.id for t in ordered}:
         fig.add_trace(
             go.Scatter(
-                name="Overdue (red outline)",
+                name="Overdue (outline)",
                 x=[None],
                 y=[None],
                 mode="markers",
@@ -269,7 +282,12 @@ def build_gantt(
                 mode="markers",
                 y=[ms_row[m.id] for m in ms_rows],
                 x=[m.baseline_date.isoformat() for m in ms_rows],
-                marker={"symbol": "diamond-open", "size": 13, "color": INK_2, "line": {"width": 2}},
+                marker={
+                    "symbol": "diamond-open",
+                    "size": 13,
+                    "color": INK_2,
+                    "line": {"width": 1.5},
+                },
                 hovertemplate="Baseline %{x|%Y-%m-%d}<extra></extra>",
             )
         )
@@ -282,7 +300,7 @@ def build_gantt(
                 marker={
                     "symbol": "diamond",
                     "size": 13,
-                    "color": INK,
+                    "color": theme.VIOLET_BLUE,
                     "line": {"color": SURFACE, "width": 2},
                 },
                 customdata=[
@@ -307,6 +325,67 @@ def build_gantt(
         tickfont={"color": INK_2},
     )
     return fig
+
+
+def _add_dependencies(
+    fig: go.Figure,
+    tasks: Sequence[Task],
+    row: Mapping[int, str],
+    dependencies: Iterable[tuple[int, int, bool]],
+) -> None:
+    """Elbow connectors: down from the predecessor's end, across to the successor's start."""
+    by_id = {t.id: t for t in tasks}
+    groups: dict[bool, list[tuple[Task, Task]]] = {False: [], True: []}
+    for pred_id, succ_id, late in dependencies:
+        if pred_id in by_id and succ_id in by_id:
+            groups[bool(late)].append((by_id[pred_id], by_id[succ_id]))
+    for late, links in groups.items():
+        if not links:
+            continue
+        color = STATUS_CRITICAL if late else LINK_COLOR
+        xs: list = []
+        ys: list = []
+        ends_x, ends_y, symbols, hover = [], [], [], []
+        for pred, succ in links:
+            x_from = _bar_end(pred.forecast_end)
+            x_to = succ.forecast_start.isoformat()
+            xs += [x_from, x_from, x_to, None]
+            ys += [row[pred.id], row[succ.id], row[succ.id], None]
+            ends_x.append(x_to)
+            ends_y.append(row[succ.id])
+            symbols.append("triangle-left" if late else "triangle-right")
+            hover.append(f"#{pred.id} → #{succ.id}" + (" · starts before it ends" if late else ""))
+        name = "Late dependency" if late else "Dependency"
+        fig.add_trace(
+            go.Scatter(
+                name=name,
+                x=xs,
+                y=ys,
+                mode="lines",
+                legendgroup=name,
+                line={"color": color, "width": 1.3},
+                opacity=0.85,
+                hoverinfo="skip",
+            )
+        )
+        fig.add_trace(
+            go.Scatter(
+                name=name,
+                x=ends_x,
+                y=ends_y,
+                mode="markers",
+                legendgroup=name,
+                showlegend=False,
+                text=hover,
+                hovertemplate="%{text}<extra></extra>",
+                marker={"symbol": symbols, "size": 8, "color": color},
+            )
+        )
+
+
+def _bar_end(day: date) -> str:
+    """x of a bar's right edge: the end day is inclusive."""
+    return (day + timedelta(days=1)).isoformat()
 
 
 def _span_ms(start: date, end: date) -> int:
@@ -389,7 +468,7 @@ def build_mta(
             )
 
     _layout(fig, title, filter_text, height=460)
-    _today_line(fig, today)
+    _today_line(fig, today, label_at="bottom")
     fig.update_xaxes(type="date", range=[lo, hi], title="Reporting date", tickformat="%d %b")
     fig.update_yaxes(type="date", range=[lo, hi], title="Forecast date", tickformat="%d %b")
     return fig
@@ -399,44 +478,50 @@ def build_mta(
 
 
 def build_cumulative(curves: pd.DataFrame, filter_text: str) -> go.Figure:
-    """Cumulative demand vs. capacity; the gap where demand is higher is shaded."""
+    """Cumulative demand per day as bars; the part above capacity is shown in apricot.
+
+    Bars soften the stepwise look of a cumulative line; the capacity is a
+    smooth line on top, so the shortfall reads as the apricot cap of each bar.
+    """
     title = "Cumulative demand vs. plannable capacity"
     if curves.empty:
         return empty_figure(title, filter_text, "No days in the horizon.")
     x = [d.isoformat() for d in curves["date"]]
-    upper = curves[["demand_h", "capacity_h"]].max(axis=1)
+    covered = curves[["demand_h", "capacity_h"]].min(axis=1)
+    custom = list(zip(curves["demand_h"], curves["capacity_h"], curves["shortfall_h"], strict=True))
+    hover = (
+        "Demand %{customdata[0]:.1f} h<br>Capacity %{customdata[1]:.1f} h"
+        "<br>Shortfall %{customdata[2]:.1f} h<extra></extra>"
+    )
     fig = go.Figure()
+    fig.add_trace(
+        go.Bar(
+            name="Demand within capacity",
+            x=x,
+            y=covered,
+            customdata=custom,
+            marker={"color": _rgba(DEMAND_COLOR, 0.85), "cornerradius": 2},
+            hovertemplate=hover,
+        )
+    )
+    fig.add_trace(
+        go.Bar(
+            name="Demand above capacity",
+            x=x,
+            y=curves["shortfall_h"],
+            customdata=custom,
+            marker={"color": SHORTFALL_COLOR, "cornerradius": 2},
+            hovertemplate=hover,
+        )
+    )
     fig.add_trace(
         go.Scatter(
             name="Capacity",
             x=x,
             y=curves["capacity_h"],
             mode="lines",
-            line={"color": CAPACITY_COLOR, "width": 2, "shape": "hv"},
-            hovertemplate="Capacity %{y:.1f} h<extra></extra>",
-        )
-    )
-    fig.add_trace(
-        go.Scatter(
-            name="Shortfall",
-            x=x,
-            y=upper,
-            mode="lines",
-            fill="tonexty",
-            fillcolor="rgba(208,59,59,0.18)",
-            line={"width": 0, "shape": "hv"},
-            customdata=curves["shortfall_h"],
-            hovertemplate="Shortfall %{customdata:.1f} h<extra></extra>",
-        )
-    )
-    fig.add_trace(
-        go.Scatter(
-            name="Demand",
-            x=x,
-            y=curves["demand_h"],
-            mode="lines",
-            line={"color": DEMAND_COLOR, "width": 2, "shape": "hv"},
-            hovertemplate="Demand %{y:.1f} h<extra></extra>",
+            line={"color": CAPACITY_COLOR, "width": 2, "shape": "spline", "smoothing": 0.6},
+            hoverinfo="skip",
         )
     )
     worst = curves.loc[curves["shortfall_h"].idxmax()]
@@ -448,12 +533,12 @@ def build_cumulative(curves: pd.DataFrame, filter_text: str) -> go.Figure:
             showarrow=True,
             arrowcolor=AXIS,
             ax=0,
-            ay=-30,
+            ay=-28,
             font={"color": INK, "size": 11},
         )
     _layout(fig, title, filter_text)
-    fig.update_layout(hovermode="x unified")
-    fig.update_xaxes(type="date", tickformat="%d %b")
+    fig.update_layout(barmode="stack", bargap=0.25, hovermode="x unified")
+    fig.update_xaxes(type="date", tickformat="%d %b", showgrid=False)
     fig.update_yaxes(title="Hours (cumulative)", rangemode="tozero")
     return fig
 
@@ -465,7 +550,7 @@ def build_weekly_load(
     filter_text: str,
     colors: Mapping[str, str] | None = None,
 ) -> go.Figure:
-    """Stacked weekly hours per group with the weekly capacity as a marker per week.
+    """Stacked lines (areas) of weekly hours per group, with the weekly capacity line.
 
     ``group_label`` is "Priority" or "Label"; for labels the subtitle notes that
     a task with several labels counts in each. ``colors`` maps group -> color.
@@ -482,39 +567,39 @@ def build_weekly_load(
             if group_label.lower() == "priority"
             else categorical_colors(weekly["group"].unique() if len(weekly) else [])
         )
+    weeks = [week_label(w) for w in capacity["week_start"]]
     fig = go.Figure()
     for group in dict.fromkeys(weekly["group"]) if len(weekly) else []:
         part = weekly[weekly["group"] == group]
+        hours = dict(zip(part["week_start"].map(week_label), part["hours"], strict=True))
+        color = colors.get(group, OTHER_COLOR)
         fig.add_trace(
-            go.Bar(
+            go.Scatter(
                 name=group,
-                x=[week_label(w) for w in part["week_start"]],
-                y=part["hours"],
-                marker={
-                    "color": colors.get(group, OTHER_COLOR),
-                    "line": {"color": SURFACE, "width": 2},
-                },
-                hovertemplate=f"<b>{group}</b><br>%{{x}}: %{{y:.1f}} h<extra></extra>",
+                x=weeks,
+                y=[hours.get(w, 0.0) for w in weeks],  # every week, so the stack is continuous
+                mode="lines",
+                stackgroup="load",
+                # solid bands separated by a thin paper line (the 2px surface gap)
+                line={"color": SURFACE, "width": 1.5, "shape": "spline", "smoothing": 0.45},
+                fillcolor=color,
+                hovertemplate=f"{group}: %{{y:.1f}} h<extra></extra>",
             )
         )
     fig.add_trace(
         go.Scatter(
             name="Capacity",
-            x=[week_label(w) for w in capacity["week_start"]],
+            x=weeks,
             y=capacity["capacity_h"],
-            mode="markers",
-            marker={
-                "symbol": "line-ew",
-                "size": 60,
-                "line": {"color": CAPACITY_COLOR, "width": 2.5},
-            },
+            mode="lines+markers",
+            line={"color": CAPACITY_COLOR, "width": 2},
+            marker={"size": 6, "color": CAPACITY_COLOR},
             hovertemplate="Capacity %{y:.1f} h<extra></extra>",
         )
     )
     _layout(fig, title, subtitle)
-    fig.update_layout(barmode="stack", bargap=0.55)
-    weeks = [week_label(w) for w in capacity["week_start"]]
-    fig.update_xaxes(type="category", categoryorder="array", categoryarray=weeks)
+    fig.update_layout(hovermode="x unified")
+    fig.update_xaxes(type="category", categoryorder="array", categoryarray=weeks, showgrid=False)
     fig.update_yaxes(title="Hours per week", rangemode="tozero")
     return fig
 

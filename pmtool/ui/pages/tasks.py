@@ -17,6 +17,7 @@ from pmtool.domain.filters import Filter, apply_filter
 from pmtool.domain.models import Snapshot
 from pmtool.services import Services
 from pmtool.ui import ids
+from pmtool.ui.components import filter_bar
 from pmtool.ui.feedback import NO_FEEDBACK, run, write_outputs
 from pmtool.ui.formatting import (
     AT_RISK_MARK,
@@ -25,7 +26,11 @@ from pmtool.ui.formatting import (
     priority_label,
     task_flags,
 )
+from pmtool.ui.layout import page_header
 from pmtool.ui.state import filter_from_store
+from pmtool.ui.theme import CRITICAL, MUTED, WARNING
+
+TINT_CRITICAL, TINT_WARNING = "#f5e4de", "#fbeedd"
 
 PATH = "/tasks"
 NAME = "Tasks"
@@ -48,9 +53,15 @@ COLUMNS: list[dict[str, Any]] = [
 
 ROW_STYLE = {
     "styleConditions": [
-        {"condition": "params.data.archived", "style": {"color": "#6c757d", "fontStyle": "italic"}},
-        {"condition": "params.data.overdue", "style": {"backgroundColor": "#f8d7da"}},
-        {"condition": "params.data.at_risk", "style": {"backgroundColor": "#fff3cd"}},
+        {"condition": "params.data.archived", "style": {"color": MUTED, "fontStyle": "italic"}},
+        {
+            "condition": "params.data.overdue",
+            "style": {"backgroundColor": TINT_CRITICAL, "boxShadow": f"inset 3px 0 0 {CRITICAL}"},
+        },
+        {
+            "condition": "params.data.at_risk",
+            "style": {"backgroundColor": TINT_WARNING, "boxShadow": f"inset 3px 0 0 {WARNING}"},
+        },
     ]
 }
 
@@ -88,46 +99,19 @@ def task_rows(snap: Snapshot, f: Filter, today: date, now: datetime) -> list[dic
 
 
 def layout(**_kwargs) -> html.Div:
-    toolbar = html.Div(
+    def bulk(label, component_id, color="secondary"):
+        return dbc.Button(label, id=component_id, size="sm", color=color, outline=True,
+                          disabled=True)  # fmt: skip
+
+    header = page_header(
+        NAME,
+        ids.TASKS_FILTER_TEXT,
         [
-            html.Div(
-                [
-                    html.H4(NAME, className="mb-0"),
-                    html.Div(id=ids.TASKS_FILTER_TEXT, className="text-muted small"),
-                ],
-            ),  # fmt: skip
-            html.Div(
-                [
-                    html.Span(id=ids.TASKS_COUNT, className="text-muted small me-2"),
-                    dbc.Button(
-                        "Mark reviewed",
-                        id=ids.BULK_REVIEWED,
-                        size="sm",
-                        color="secondary",
-                        outline=True,
-                        disabled=True,
-                    ),
-                    dbc.Button(
-                        "Re-baseline…",
-                        id=ids.BULK_REBASELINE,
-                        size="sm",
-                        color="secondary",
-                        outline=True,
-                        disabled=True,
-                    ),
-                    dbc.Button(
-                        "Archive",
-                        id=ids.BULK_ARCHIVE,
-                        size="sm",
-                        color="danger",
-                        outline=True,
-                        disabled=True,
-                    ),
-                ],  # fmt: skip
-                className="d-flex gap-2 align-items-center",
-            ),
+            html.Span(id=ids.TASKS_COUNT, className="pm-hint me-1"),
+            bulk("Mark reviewed", ids.BULK_REVIEWED),
+            bulk("Re-baseline…", ids.BULK_REBASELINE),
+            bulk("Archive", ids.BULK_ARCHIVE, "danger"),
         ],
-        className="d-flex justify-content-between align-items-end flex-wrap gap-2 mb-2",
     )
     grid = dag.AgGrid(
         id=ids.TASK_GRID,
@@ -142,7 +126,7 @@ def layout(**_kwargs) -> html.Div:
             "tooltipShowDelay": 300,
             "localeText": {"noRowsToShow": "No tasks match the filter."},
         },
-        style={"height": "calc(100vh - 170px)", "minHeight": "400px"},
+        style={"height": "calc(100vh - 250px)", "minHeight": "420px"},
         className="ag-theme-alpine",
     )
     rebaseline = dbc.Modal(
@@ -169,7 +153,7 @@ def layout(**_kwargs) -> html.Div:
         id=ids.REBASELINE_MODAL,
         is_open=False,
     )
-    return html.Div([toolbar, grid, rebaseline])
+    return html.Div([header, filter_bar.layout("tasks"), grid, rebaseline])
 
 
 # --- callbacks ---------------------------------------------------------------------

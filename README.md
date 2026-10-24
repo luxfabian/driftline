@@ -52,14 +52,25 @@ drift, blocked, at-risk, stale and overdue tasks), all relative to today. Your o
 | Page | What you do there |
 |---|---|
 | **Dashboard** | Load ratio for the next weeks (OK / Tight / Overloaded), counts of overdue, at-risk, blocked and stale tasks, the most delayed items, milestone and dependency warnings. Click a task to open it. |
-| **Tasks** | Sortable, filterable table. Click a row for details: edit, labels, milestone, at-risk flag, dependencies, comments and full change history. Select rows to mark them reviewed, re-baseline or archive them. "+ New task" is in the top bar. |
-| **Timeline** | Gantt chart: forecast bars by status inside baseline outlines, milestones as diamonds, today line. Click a bar to open the task. |
+| **Tasks** | Filter bar on top; sortable, filterable table. Click a row for details: edit, labels, milestone, at-risk flag, dependencies, comments and full change history. Select rows to mark them reviewed, re-baseline or archive them. "+ New task" is in the top bar. |
+| **Timeline** | Gantt chart: forecast bars by status inside baseline outlines, milestones as diamonds, today line, and arrows from each task to the tasks that depend on it (red when the successor starts too early). Switches turn milestones and dependencies on or off. Click a bar to open the task. |
 | **Milestones** | Create, edit (with a reason), mark achieved, reopen, re-baseline, archive. The trend chart shows how each forecast moved over time. |
-| **Workload** | Whether the work fits (cumulative demand vs. capacity, shortfall shaded) and where the peaks are (weekly load by priority or label), for 1–12 weeks. |
+| **Workload** | Whether the work fits (cumulative demand as bars, the shortfall above capacity in apricot) and where the peaks are (stacked weekly load by priority or label against capacity), for 1–12 weeks. |
 | **Settings** | Working hours and days, plannable share, thresholds, absences, public holidays; export to Excel or CSV; import tasks from CSV; restore or permanently delete archived items. |
 
-The **filter** on the left applies to every page except Settings, and every chart says
-which filter is active.
+The **filter bar** sits on the pages that show tasks: Tasks and Timeline (labels,
+milestones, priority, status; "More filters" for label matching, dates, at-risk only and
+archived) and Workload (only what changes demand: labels, milestones, priority, at-risk).
+The filter is shared, so a filter set on Tasks also applies on Timeline and Workload, and
+every chart says which filter is active. The Dashboard always shows all open work.
+
+### Design
+
+Colors come from Sanzo Wada's *A Dictionary of Color Combinations*, No. 309: Golden
+Yellow, Apricot Orange, Vandar Poel's Blue and Violet Blue, on warm paper. The interface
+uses them as printed; charts use the same hues adjusted for readability and checked for
+color-vision deficiencies (`pmtool/ui/theme.py`, `pmtool/ui/assets/theme.css`). The font is
+IBM Plex Sans (SIL Open Font License, bundled in `pmtool/ui/assets/fonts/`).
 
 ### Importing tasks from CSV
 
@@ -134,14 +145,22 @@ User interface (phases 4–6)
   dependency warnings are checked against all active tasks. Milestones only react to the
   milestone and "include archived" filters, and their page states exactly that part.
 - Chart colors follow their job: status colors for task states (blocked bars are also
-  hatched, since red/green alone is not colorblind-safe), one blue ramp for priority, fixed
-  colors per label and milestone that do not change with the filter; more than eight
-  labels share "Other". Light theme only.
+  hatched), one blue ramp for priority, fixed colors per label and milestone that do not
+  change with the filter. Light theme only.
 - Bootstrap's CSS is bundled in `pmtool/ui/assets/`, so the app works offline (NFR-01).
 - Export contains everything, archived items included. CSV files are UTF-8 with a byte
   order mark so Excel shows umlauts; Excel cells hold real dates and timestamps as ISO text.
 - Import creates new planned tasks from the plan columns only; status, remaining effort,
   milestone and dependencies in the file are ignored, and duplicates are not checked.
+
+UI iteration (after phase 7)
+- The sidebar filter was replaced by a filter bar on Tasks, Timeline and Workload; the
+  Dashboard is unfiltered and Milestones has its own "Show archived" switch.
+- Workload ignores the status, date and archive filters: demand is always the open work.
+- With more than seven labels, the six with the most open hours keep their own color (judged
+  on all open work, so filtering never repaints the chart); the rest share "Other".
+- Timeline dependency arrows run from the predecessor's end to the successor's start; links
+  to tasks outside the filter are not drawn (the dependency warnings still check them).
 
 Hardening (phase 7)
 - Any error a page does not handle itself becomes a message in the app ("Something went
@@ -159,7 +178,6 @@ Hardening (phase 7)
 
 ### Backlog (next UI iteration)
 
-- Timeline: draw task dependencies (predecessor → successor arrows) in the Gantt chart.
 - Weekly workload chart: decide whether the current week's capacity counts from today.
 - Requirements open points O-01 (time logging), O-02 (plannable share per week),
   O-03 (gaps in dependency chains).

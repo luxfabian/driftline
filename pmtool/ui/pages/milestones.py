@@ -24,7 +24,8 @@ from pmtool.services import Services
 from pmtool.ui import charts, ids
 from pmtool.ui.feedback import NO_FEEDBACK, run, write_outputs
 from pmtool.ui.formatting import filter_text
-from pmtool.ui.state import filter_from_store
+from pmtool.ui.layout import page_header
+from pmtool.ui.theme import MUTED, WARNING
 
 PATH = "/milestones"
 NAME = "Milestones"
@@ -43,8 +44,11 @@ COLUMNS: list[dict[str, Any]] = [
 ]  # fmt: skip
 ROW_STYLE = {
     "styleConditions": [
-        {"condition": "params.data.archived", "style": {"color": "#6c757d", "fontStyle": "italic"}},
-        {"condition": "params.data.warning", "style": {"backgroundColor": "#fff3cd"}},
+        {"condition": "params.data.archived", "style": {"color": MUTED, "fontStyle": "italic"}},
+        {
+            "condition": "params.data.warning",
+            "style": {"backgroundColor": "#fbeedd", "boxShadow": f"inset 3px 0 0 {WARNING}"},
+        },
     ]
 }
 
@@ -132,23 +136,19 @@ def layout(**_kwargs) -> html.Div:
         return dbc.Button(label, id=component_id, size="sm", color=color, outline=outline,
                           disabled=disabled)  # fmt: skip
 
-    toolbar = html.Div(
+    header = page_header(
+        NAME,
+        ids.MS_FILTER_TEXT,
         [
-            html.Div([html.H4(NAME, className="mb-0"),
-                      html.Div(id=ids.MS_FILTER_TEXT, className="text-muted small")]),
-            html.Div(
-                [
-                    button("+ New milestone", ids.MS_NEW, "primary", False, False),
-                    button("Edit…", ids.MS_EDIT),
-                    button("Achieved…", ids.MS_ACHIEVE),
-                    button("Reopen", ids.MS_REOPEN),
-                    button("Re-baseline…", ids.MS_REBASELINE),
-                    button("Archive", ids.MS_ARCHIVE, "danger"),
-                ],
-                className="d-flex gap-2 flex-wrap",
-            ),
+            dbc.Switch(id=ids.MS_ARCHIVED, label="Show archived", value=False,
+                       persistence=True, persistence_type="session", className="mb-0 me-2"),
+            button("Edit…", ids.MS_EDIT),
+            button("Achieved…", ids.MS_ACHIEVE),
+            button("Reopen", ids.MS_REOPEN),
+            button("Re-baseline…", ids.MS_REBASELINE),
+            button("Archive", ids.MS_ARCHIVE, "danger"),
+            button("+ New milestone", ids.MS_NEW, "primary", False, False),
         ],
-        className="d-flex justify-content-between align-items-end flex-wrap gap-2 mb-2",
     )  # fmt: skip
     grid = dag.AgGrid(
         id=ids.MS_GRID,
@@ -162,22 +162,26 @@ def layout(**_kwargs) -> html.Div:
             "localeText": {"noRowsToShow": "No milestones yet."},
             "domLayout": "autoHeight",
         },
-        className="ag-theme-alpine mb-3",
+        className="ag-theme-alpine mb-4",
     )
     mta = html.Div(
         [
-            dbc.Label("Milestones in the trend chart", className="small mb-1"),
-            dcc.Dropdown(id=ids.MTA_SELECT, multi=True, placeholder="All shown milestones",
-                         persistence=True, persistence_type="session"),
-            dcc.Graph(id=ids.MTA_GRAPH, config={"displaylogo": False}),
+            html.Div(
+                dcc.Dropdown(id=ids.MTA_SELECT, multi=True, placeholder="All milestones",
+                             persistence=True, persistence_type="session",
+                             className="pm-filter-wide", style={"width": "420px"}),
+                className="pm-filterbar",
+            ),
+            html.Div(dcc.Graph(id=ids.MTA_GRAPH, config={"displaylogo": False}),
+                     className="pm-panel"),
             html.P(
                 "Each line shows how the forecast date moved over time. Rising lines slip; "
                 "a line that reaches the diagonal was achieved (or is due) on that day.",
-                className="text-muted small",
+                className="pm-hint",
             ),
         ]
     )  # fmt: skip
-    return html.Div([toolbar, grid, mta, _dialog(), dcc.Store(id=ids.MS_DIALOG_MODE)])
+    return html.Div([header, grid, mta, _dialog(), dcc.Store(id=ids.MS_DIALOG_MODE)])
 
 
 def _dialog() -> dbc.Modal:
@@ -230,15 +234,16 @@ def register_callbacks(app: Dash, services: Services) -> None:
         Output(ids.MTA_SELECT, "options"),
         Output(ids.MTA_GRAPH, "figure"),
         Input(ids.DATA_VERSION, "data"),
-        Input(ids.FILTER, "data"),
+        Input(ids.MS_ARCHIVED, "value"),
         Input(ids.MTA_SELECT, "value"),
     )
-    def refresh(_version, filter_data, selected):
-        f = filter_from_store(filter_data)
+    def refresh(_version, show_archived, selected):
+        f = Filter(include_archived=bool(show_archived))
         snap = services.snapshot.load(include_archived=True)
         rows = milestone_rows(snap, f)
         options = [{"label": r["name"], "value": r["id"]} for r in rows]
-        text = f"Filter: {filter_text(snap, milestone_filter(f))}"
+        count = f"{len(rows)} milestone" + ("" if len(rows) == 1 else "s")
+        text = count + (" incl. archived" if show_archived else "")
         return rows, text, options, mta_figure(snap, f, clock.today(), selected)
 
     @app.callback(

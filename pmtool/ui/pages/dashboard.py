@@ -1,8 +1,9 @@
 """Dashboard [WL-07, WL-08, FUN-12, SCH-05, SCH-06, FUN-07] (architecture §9.3).
 
-KPIs and the delayed-items list follow the filter. Milestone and dependency
-warnings are checked against all active tasks (a predecessor outside the filter
-can still be late) and then listed for the filtered tasks.
+An overview of all open work, without a filter (the filter lives on Tasks,
+Timeline and Workload). ``dashboard_data`` still takes a filter: KPIs and the
+delayed list follow it, while milestone and dependency warnings are checked
+against all active tasks (a predecessor outside the filter can still be late).
 """
 
 from __future__ import annotations
@@ -29,8 +30,7 @@ from pmtool.domain.models import Milestone, Snapshot, Task
 from pmtool.services import Services
 from pmtool.ui import charts, ids
 from pmtool.ui.components.kpi import load_tile, stat_tile
-from pmtool.ui.formatting import filter_text
-from pmtool.ui.state import filter_from_store
+from pmtool.ui.layout import page_header
 
 PATH = "/"
 NAME = "Dashboard"
@@ -92,9 +92,8 @@ def dashboard_data(snap: Snapshot, f: Filter, today: date, now: datetime) -> Das
 def layout(**_kwargs) -> html.Div:
     return html.Div(
         [
-            html.H4(NAME, className="mb-0"),
-            html.Div(id=ids.DASH_FILTER_TEXT, className="text-muted small mb-3"),
-            html.Div(id=ids.DASH_KPIS, className="mb-3"),
+            page_header(NAME, ids.DASH_FILTER_TEXT),
+            html.Div(id=ids.DASH_KPIS, className="mb-4"),
             dbc.Row(
                 [
                     dbc.Col(_card("Most delayed", ids.DASH_DELAYED), lg=6),
@@ -233,15 +232,14 @@ def register_callbacks(app: Dash, services: Services) -> None:
         Output(ids.DASH_MS_WARNINGS, "children"),
         Output(ids.DASH_DEP_WARNINGS, "children"),
         Input(ids.DATA_VERSION, "data"),
-        Input(ids.FILTER, "data"),
     )
-    def refresh(_version, filter_data):
-        f = filter_from_store(filter_data)
-        snap = services.snapshot.load(include_archived=f.include_archived)
-        data = dashboard_data(snap, f, clock.today(), clock.now())
+    def refresh(_version):
+        snap = services.snapshot.load()
+        data = dashboard_data(snap, Filter(), clock.today(), clock.now())  # all open work
         tasks = {t.id: t for t in snap.tasks}
+        today = clock.today()
         return (
-            f"Filter: {filter_text(snap, f)}",
+            f"All open work · {today:%A, %d %B %Y}",
             kpi_row(data, snap),
             delayed_list(data.delayed, tasks),
             milestone_warning_list(data.milestone_warnings),

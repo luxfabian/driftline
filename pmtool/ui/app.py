@@ -9,7 +9,7 @@ from dash import Dash, Input, Output
 
 from pmtool.services import Services
 from pmtool.ui import ids
-from pmtool.ui.components import confirm_modal, filter_panel, task_detail, task_form
+from pmtool.ui.components import confirm_modal, filter_bar, task_detail, task_form
 from pmtool.ui.feedback import on_callback_error
 from pmtool.ui.formatting import lookups
 from pmtool.ui.layout import shell
@@ -18,7 +18,8 @@ from pmtool.ui.pages import dashboard, milestones, settings, tasks, timeline, wo
 # Navbar order (architecture §9.1).
 PAGES = (dashboard, tasks, timeline, milestones, workload, settings)
 
-# Bootstrap's CSS is served from here, so the app runs without internet [NFR-01].
+# Bootstrap's CSS, the theme and its fonts are served from here, so the app runs
+# without internet [NFR-01].
 ASSETS_DIR = Path(__file__).parent / "assets"
 
 
@@ -46,7 +47,7 @@ def create_app(services: Services) -> Dash:
     app.layout = shell(PAGES)
 
     _register_lookups(app, services)
-    filter_panel.register_callbacks(app, services)
+    filter_bar.register_callbacks(app, services)
     confirm_modal.register_callbacks(app, services)
     task_form.register_callbacks(app, services)
     task_detail.register_callbacks(app, services)

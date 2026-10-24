@@ -5,7 +5,7 @@ Stores hold JSON only, so sets become sorted lists and dates ISO strings.
 
 from __future__ import annotations
 
-from collections.abc import Iterable, Mapping
+from collections.abc import Mapping
 from datetime import date
 from typing import Any
 
@@ -50,33 +50,6 @@ def filter_from_store(data: Mapping[str, Any] | None) -> Filter:
     )
 
 
-def filter_from_controls(
-    labels: Iterable[Any] | None,
-    label_mode: str | None,
-    priorities: Iterable[Any] | None,
-    statuses: Iterable[str] | None,
-    at_risk_only: bool | None,
-    milestone_ids: Iterable[Any] | None,
-    date_from: str | None,
-    date_to: str | None,
-    include_archived: bool | None,
-) -> Filter:
-    """Filter panel values -> Filter. ``statuses=None`` keeps the default (open)."""
-    return filter_from_store(
-        {
-            "labels": list(labels or []),
-            "label_mode": label_mode,
-            "priorities": list(priorities or []),
-            "statuses": None if statuses is None else list(statuses),
-            "at_risk_only": at_risk_only,
-            "milestone_ids": list(milestone_ids or []),
-            "date_from": date_from,
-            "date_to": date_to,
-            "include_archived": include_archived,
-        }
-    )
-
-
 def parse_date(value: Any) -> date | None:
     """ISO date string (or the date part of an ISO timestamp) -> date; else None."""
     if not value or not isinstance(value, str):
@@ -95,3 +68,14 @@ def _ints(values: Any) -> frozenset[int]:
         except (TypeError, ValueError):
             continue
     return frozenset(result)
+
+
+def merge_into_store(store: Mapping[str, Any] | None, changes: Mapping[str, Any]) -> dict[str, Any]:
+    """Apply the values of the filter controls on one page to the stored filter.
+
+    Only the fields present in ``changes`` change; the rest is kept, so a page
+    that shows fewer controls (e.g. Workload) does not reset the others.
+    """
+    merged = filter_to_store(filter_from_store(store))
+    merged.update({k: v for k, v in changes.items() if k in merged})
+    return filter_to_store(filter_from_store(merged))

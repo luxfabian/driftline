@@ -34,12 +34,34 @@ class GanttTest(unittest.TestCase):
         self.assertIn(FILTER_TEXT, subtitle(fig))
         self.assertEqual(
             names(fig),
-            ["Baseline", "Planned", "Blocked", "⚠ At risk", "Overdue (red outline)",
+            ["Baseline", "Planned", "Blocked", "⚠ At risk", "Overdue (outline)",
              "Milestone baseline", "Milestone forecast"],
         )  # fmt: skip
         blocked_trace = fig.data[2]
         self.assertEqual(blocked_trace.marker.pattern.shape, "/")  # not color alone
         self.assertEqual(blocked_trace.marker.line.color, (charts.STATUS_CRITICAL,))
+
+    def test_dependency_connectors(self):  # FUN-06/07, toggled on the timeline page
+        a = make_task(start=D("2026-10-12"), end=D("2026-10-16"))
+        b = make_task(start=D("2026-10-19"), end=D("2026-10-23"))
+        c = make_task(start=D("2026-10-14"), end=D("2026-10-20"))
+        hidden = make_task()
+        links = [(a.id, b.id, False), (a.id, c.id, True), (hidden.id, b.id, False)]
+        fig = charts.build_gantt([a, b, c], [], TODAY, FILTER_TEXT, risk_ids=(), dependencies=links)
+        lines = {t.name: t for t in fig.data if getattr(t, "mode", None) == "lines"}
+        self.assertEqual(set(lines), {"Dependency", "Late dependency"})
+        ok = lines["Dependency"]
+        # elbow: down from a's bar end (day after its end), then across to b's start
+        self.assertEqual(list(ok.x), ["2026-10-17", "2026-10-17", "2026-10-19", None])
+        self.assertEqual(ok.y[0], f"#{a.id} Task")
+        self.assertEqual(ok.y[2], f"#{b.id} Task")
+        self.assertEqual(lines["Late dependency"].line.color, charts.STATUS_CRITICAL)
+        # the link from the hidden task is not drawn
+        self.assertEqual(sum(x is None for x in ok.x), 1)
+
+    def test_no_connectors_without_dependencies(self):
+        fig = charts.build_gantt([make_task()], [], TODAY, FILTER_TEXT, risk_ids=())
+        self.assertFalse(any(getattr(t, "mode", None) == "lines" for t in fig.data))
 
     def test_bar_spans_inclusive_end_day(self):
         t = make_task(start=D("2026-10-12"), end=D("2026-10-12"))
@@ -84,9 +106,13 @@ class WorkloadChartsTest(unittest.TestCase):
 
     def test_cumulative_shades_shortfall(self):
         fig = charts.build_cumulative(self.curves([10, 10, 20], [5, 10, 15]), FILTER_TEXT)
-        self.assertEqual(names(fig), ["Capacity", "Shortfall", "Demand"])
-        self.assertEqual(fig.data[1].fill, "tonexty")
-        self.assertEqual(list(fig.data[1].y), [10, 10, 20])  # max(demand, capacity)
+        self.assertEqual(
+            names(fig), ["Demand within capacity", "Demand above capacity", "Capacity"]
+        )
+        self.assertEqual(fig.layout.barmode, "stack")
+        self.assertEqual(list(fig.data[0].y), [5, 10, 15])  # min(demand, capacity)
+        self.assertEqual(list(fig.data[1].y), [5, 0, 5])  # shortfall on top
+        self.assertEqual(fig.data[1].marker.color, charts.SHORTFALL_COLOR)
         self.assertIn(FILTER_TEXT, subtitle(fig))
         self.assertTrue(any("5.0 h" in a.text for a in fig.layout.annotations))
 
@@ -110,8 +136,11 @@ class WorkloadChartsTest(unittest.TestCase):
         self.assertEqual(names(fig), ["work", "home", "Capacity"])
         self.assertIn(FILTER_TEXT, subtitle(fig))
         self.assertIn(charts.MULTI_LABEL_NOTE, subtitle(fig))
-        self.assertEqual(fig.layout.barmode, "stack")
+        self.assertEqual({t.stackgroup for t in fig.data[:2]}, {"load"})  # stacked lines
+        self.assertIsNone(fig.data[2].stackgroup)  # capacity is not stacked
         self.assertEqual(list(fig.layout.xaxis.categoryarray), ["Wk of 12 Oct", "Wk of 19 Oct"])
+        home = fig.data[1]
+        self.assertEqual(list(home.y), [3.0, 0.0])  # weeks without hours are 0, not gaps
 
     def test_weekly_by_priority_has_no_label_note(self):
         fig = charts.build_weekly_load(self.weekly(), self.capacity(), "Priority", FILTER_TEXT)
@@ -127,8 +156,12 @@ class ColorsTest(unittest.TestCase):
     def test_categorical_fixed_order_and_other(self):
         few = charts.categorical_colors([3, 1, 2])
         self.assertEqual(list(few.values()), list(charts.CATEGORICAL[:3]))
+        all_slots = charts.categorical_colors(range(len(charts.CATEGORICAL)))
+        self.assertEqual(list(all_slots.values()), list(charts.CATEGORICAL))
         many = charts.categorical_colors(range(10))
-        self.assertEqual(len(set(many.values()) - {charts.OTHER_COLOR}), 7)
+        self.assertEqual(
+            len(set(many.values()) - {charts.OTHER_COLOR}), len(charts.CATEGORICAL) - 1
+        )
         self.assertEqual(many[9], charts.OTHER_COLOR)
 
     def test_status_colors_cover_every_status(self):

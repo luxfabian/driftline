@@ -21,6 +21,7 @@ from pmtool.services.import_service import ImportResult
 from pmtool.ui import ids
 from pmtool.ui.actions import Outcome
 from pmtool.ui.feedback import NO_FEEDBACK, feedback, run, write_outputs
+from pmtool.ui.layout import page_header
 
 PATH = "/settings"
 NAME = "Settings"
@@ -185,8 +186,7 @@ def layout(**_kwargs) -> html.Div:
                 children=html.Div(["Drop a CSV file here or ", html.A("choose one")]),
                 accept=".csv,text/csv",
                 multiple=False,
-                className="border border-2 rounded text-center p-3 small mb-2",
-                style={"borderStyle": "dashed"},
+                className="pm-upload small mb-2",
             ),
             dbc.Button("Download CSV template", id=ids.IMPORT_TEMPLATE, size="sm",
                        color="link", className="p-0 mb-2"),
@@ -207,7 +207,7 @@ def layout(**_kwargs) -> html.Div:
     )  # fmt: skip
     return html.Div(
         [
-            html.H4(NAME),
+            page_header(NAME),
             dbc.Row(
                 [dbc.Col([capacity, absences, holidays], lg=6), dbc.Col([data, archive], lg=6)],
                 className="g-3",

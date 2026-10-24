@@ -7,7 +7,6 @@ from dataclasses import dataclass
 # --- shell -----------------------------------------------------------------------
 URL = "url"
 NEW_TASK_BUTTON = "new-task-button"
-SIDEBAR = "sidebar"
 
 # --- global stores ---------------------------------------------------------------
 FILTER = "filter-store"  # serialized Filter, storage="session"
@@ -24,17 +23,21 @@ CONFIRM_TEXT = "confirm-text"
 CONFIRM_YES = "confirm-yes"
 CONFIRM_NO = "confirm-no"
 
-# --- filter panel ----------------------------------------------------------------
-FILTER_LABELS = "filter-labels"
-FILTER_LABEL_MODE = "filter-label-mode"
-FILTER_PRIORITIES = "filter-priorities"
-FILTER_STATUSES = "filter-statuses"
-FILTER_AT_RISK = "filter-at-risk"
-FILTER_MILESTONES = "filter-milestones"
-FILTER_DATE_FROM = "filter-date-from"
-FILTER_DATE_TO = "filter-date-to"
-FILTER_ARCHIVED = "filter-archived"
+# --- filter bar (shown on the pages that filter tasks) -----------------------------------
+FILTER_CTL = "filter-ctl"  # pattern: {"type": FILTER_CTL, "field": <store key>}
+FILTER_BAR = "filter-bar"  # pattern: {"type": FILTER_BAR, "page": <page name>}
+FILTER_MORE = "filter-more"
+FILTER_MORE_PANEL = "filter-more-panel"
 FILTER_RESET = "filter-reset"
+
+
+def filter_ctl(field: str) -> dict[str, str]:
+    """One filter control; ``field`` is its key in the FILTER store (state.filter_to_store)."""
+    return {"type": FILTER_CTL, "field": field}
+
+
+def filter_bar(page: str) -> dict[str, str]:
+    return {"type": FILTER_BAR, "page": page}
 
 
 # --- task forms ------------------------------------------------------------------
@@ -110,10 +113,12 @@ DASH_DEP_WARNINGS = "dash-dep-warnings"
 # --- timeline ----------------------------------------------------------------------
 TIMELINE_GRAPH = "timeline-graph"
 TIMELINE_MILESTONES = "timeline-show-milestones"
+TIMELINE_DEPENDENCIES = "timeline-show-dependencies"
 
 # --- milestones page ---------------------------------------------------------------
 MS_GRID = "ms-grid"
 MS_FILTER_TEXT = "ms-filter-text"
+MS_ARCHIVED = "ms-show-archived"
 MS_NEW = "ms-new"
 MS_EDIT = "ms-edit"
 MS_ACHIEVE = "ms-achieve"

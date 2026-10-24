@@ -13,7 +13,7 @@ from pmtool.ui import charts
 from pmtool.ui.pages.dashboard import dashboard_data
 from pmtool.ui.pages.milestones import dialog_action, milestone_rows, mta_figure
 from pmtool.ui.pages.timeline import clicked_task_id, timeline_figure
-from pmtool.ui.pages.workload import workload_data
+from pmtool.ui.pages.workload import colored_labels, workload_data, workload_filter
 from tests.factories import TODAY, D, forecast_entry, make_milestone, make_task
 from tests.helpers import T0
 
@@ -69,6 +69,26 @@ class DashboardDataTest(unittest.TestCase):
         self.assertEqual([sorted(t.id for t in c) for c in data.cycles], [sorted([a.id, b.id])])
 
 
+class WorkloadFilterTest(unittest.TestCase):
+    def test_status_dates_and_archive_do_not_apply(self):
+        f = Filter(
+            labels=frozenset({1}),
+            priorities=frozenset({2}),
+            statuses=frozenset(),
+            date_from=D("2026-10-01"),
+            include_archived=True,
+            at_risk_only=True,
+        )
+        scoped = workload_filter(f)
+        self.assertEqual(
+            (scoped.labels, scoped.priorities, scoped.at_risk_only),
+            (frozenset({1}), frozenset({2}), True),
+        )
+        self.assertEqual(scoped.statuses, Filter().statuses)
+        self.assertIsNone(scoped.date_from)
+        self.assertFalse(scoped.include_archived)
+
+
 class WorkloadDataTest(unittest.TestCase):
     def test_filter_applies_and_label_colors_are_stable(self):
         labels = (Label(1, "work", "work"), Label(2, "home", "home"))
@@ -89,6 +109,16 @@ class WorkloadDataTest(unittest.TestCase):
         groups = set(data.weekly["group"])
         self.assertIn(charts.OTHER, groups)
         self.assertLessEqual(len(groups), 8)
+
+    def test_biggest_labels_keep_their_color(self):
+        labels = tuple(Label(i, f"l{i:02d}", f"l{i:02d}") for i in range(1, 11))
+        tasks = [make_task(label_ids=frozenset({i}), hours=float(i)) for i in range(1, 11)]
+        snap = snapshot(tasks, labels=labels)
+        kept = colored_labels(snap)
+        self.assertEqual(kept, [f"l{i:02d}" for i in range(5, 11)])  # 6 biggest, alphabetical
+        filtered = workload_data(snap, Filter(labels=frozenset({10})), TODAY, 2, "label")
+        everything = workload_data(snap, Filter(), TODAY, 2, "label")
+        self.assertEqual(filtered.colors["l10"], everything.colors["l10"])  # no repaint
 
     def test_priority_colors(self):
         data = workload_data(snapshot([make_task()]), Filter(), TODAY, 2, "priority")
@@ -153,6 +183,16 @@ class TimelinePageTest(unittest.TestCase):
         self.assertTrue(any(y.startswith("◆") for y in rows))
         no_ms = timeline_figure(snap, Filter(), TODAY, False)
         self.assertFalse(any(t.name and "Milestone" in t.name for t in no_ms.data))
+
+    def test_dependency_links_follow_switch_and_lateness(self):
+        pred = make_task(end=D("2026-10-20"))
+        succ = make_task(start=D("2026-10-14"), predecessor_ids=frozenset({pred.id}))
+        snap = snapshot([pred, succ])
+        with_links = timeline_figure(snap, Filter(), TODAY, False, show_dependencies=True)
+        names = {t.name for t in with_links.data}
+        self.assertIn("Late dependency", names)  # succ starts before pred ends
+        without = timeline_figure(snap, Filter(), TODAY, False, show_dependencies=False)
+        self.assertFalse({"Dependency", "Late dependency"} & {t.name for t in without.data})
 
     def test_clicked_task_id(self):
         self.assertEqual(clicked_task_id({"points": [{"customdata": [7, "x"]}]}), 7)

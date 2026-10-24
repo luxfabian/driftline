@@ -15,6 +15,7 @@ import pandas as pd
 from dash import Dash, Input, Output, dcc, html
 
 from pmtool.calc.calendar import CalendarContext
+from pmtool.calc.status import is_open
 from pmtool.calc.workload import (
     NO_LABEL,
     cumulative_curves,
@@ -29,13 +30,15 @@ from pmtool.domain.filters import Filter, apply_filter
 from pmtool.domain.models import Snapshot
 from pmtool.services import Services
 from pmtool.ui import charts, ids
+from pmtool.ui.components import filter_bar
 from pmtool.ui.components.kpi import load_tile
 from pmtool.ui.formatting import filter_text
+from pmtool.ui.layout import page_header
 from pmtool.ui.state import filter_from_store
 
 PATH = "/workload"
 NAME = "Workload"
-NO_LABEL_COLOR = "#c3c2b7"
+NO_LABEL_COLOR = "#cfcbd6"
 
 
 @dataclass(frozen=True)
@@ -46,6 +49,15 @@ class WorkloadData:
     ratio: float | None
     level: str
     colors: dict[str, str]
+
+
+def workload_filter(f: Filter) -> Filter:
+    """The part of the filter that changes demand: which work, not its status or dates.
+
+    Demand is always the open work (WL-03, WL-05) over the chosen horizon.
+    """
+    return Filter(labels=f.labels, label_mode=f.label_mode, priorities=f.priorities,
+                  milestone_ids=f.milestone_ids, at_risk_only=f.at_risk_only)  # fmt: skip
 
 
 def workload_data(
@@ -63,8 +75,7 @@ def workload_data(
     label_names = {lb.id: lb.name for lb in snap.labels}
     weekly = weekly_load(allocation, tasks, group_by, ctx, label_names)
     if group_by == "label":
-        # Colors keyed by every label (stable across filters); >8 labels fold to "Other".
-        colors = charts.categorical_colors(sorted(label_names.values(), key=str.lower))
+        colors = charts.categorical_colors(colored_labels(snap))
         colors = {k: v for k, v in colors.items() if v != charts.OTHER_COLOR}
         weekly = charts.fold_groups(weekly, {*colors, NO_LABEL})
         colors |= {NO_LABEL: NO_LABEL_COLOR, charts.OTHER: charts.OTHER_COLOR}
@@ -81,51 +92,77 @@ def workload_data(
     )
 
 
+def colored_labels(snap: Snapshot) -> list[str]:
+    """Labels that get their own color, alphabetically; any others share "Other".
+
+    With more labels than color slots, the ones with the most open hours keep a
+    color. This is decided on all open work, not the filtered view, so filtering
+    never repaints the chart.
+    """
+    names = {lb.id: lb.name for lb in snap.labels}
+    if len(names) <= len(charts.CATEGORICAL):
+        return sorted(names.values(), key=str.lower)
+    hours: dict[str, float] = dict.fromkeys(names.values(), 0.0)
+    for t in snap.tasks:
+        if is_open(t):
+            for i in t.label_ids:
+                hours[names[i]] += t.remaining_effort_h
+    biggest = sorted(hours, key=lambda n: (-hours[n], n.lower()))[: len(charts.CATEGORICAL) - 1]
+    return sorted(biggest, key=str.lower)
+
+
 def layout(**_kwargs) -> html.Div:
     controls = dbc.Row(
         [
             dbc.Col(
                 [
-                    dbc.Label("Horizon (weeks)", className="small mb-0"),
+                    dbc.Label("Horizon (weeks)", className="pm-hint mb-0"),
                     dcc.Slider(
                         id=ids.WL_HORIZON, min=1, max=12, step=1, value=None,
-                        marks={i: str(i) for i in range(1, 13)},
+                        marks={i: str(i) for i in (1, 2, 4, 6, 8, 10, 12)},
                         persistence=True, persistence_type="session",
                     ),
                 ],
-                md=6,
+                lg=5,
             ),
             dbc.Col(
                 [
-                    dbc.Label("Color weekly bars by", className="small mb-0"),
+                    dbc.Label("Weekly load by", className="pm-hint mb-1 d-block"),
                     dbc.RadioItems(
                         id=ids.WL_GROUP_BY,
                         options=[{"label": "Priority", "value": "priority"},
                                  {"label": "Label", "value": "label"}],
                         value="priority", inline=True,
+                        inputClassName="btn-check",
+                        labelClassName="btn btn-outline-secondary btn-sm",
+                        labelCheckedClassName="active", className="pm-seg",
                         persistence=True, persistence_type="session",
                     ),
                 ],
-                md=3,
+                lg=3,
             ),
-            dbc.Col(html.Div(id=ids.WL_RATIO), md=3),
+            dbc.Col(html.Div(id=ids.WL_RATIO), lg=4),
         ],
-        className="g-3 align-items-center mb-2",
+        className="g-3 align-items-center mb-3",
     )  # fmt: skip
     return html.Div(
         [
-            html.H4(NAME),
+            page_header(NAME),
+            filter_bar.layout("workload", filter_bar.WORKLOAD_FIELDS),
             controls,
-            dcc.Graph(id=ids.WL_CUMULATIVE, config={"displaylogo": False}),
-            dcc.Graph(id=ids.WL_WEEKLY, config={"displaylogo": False}),
+            html.Div(dcc.Graph(id=ids.WL_CUMULATIVE, config={"displaylogo": False}),
+                     className="pm-panel"),
+            html.Div(dcc.Graph(id=ids.WL_WEEKLY, config={"displaylogo": False}),
+                     className="pm-panel"),
             html.P(
-                "The cumulative chart shows whether the work fits by its due dates (overdue "
-                "work counts as due today). The weekly chart spreads remaining effort over "
-                "the working days from each task's start, so it shows where the peaks are.",
-                className="text-muted small",
+                "Cumulative demand: whether the work fits by its due dates (overdue work "
+                "counts as due today); the apricot part of a bar is the shortfall. Weekly "
+                "load: remaining effort spread over the working days from each task's start, "
+                "so it shows where the peaks are.",
+                className="pm-hint",
             ),
         ]
-    )
+    )  # fmt: skip
 
 
 def register_callbacks(app: Dash, services: Services) -> None:
@@ -152,8 +189,8 @@ def register_callbacks(app: Dash, services: Services) -> None:
         Input(ids.WL_GROUP_BY, "value"),
     )
     def refresh(_version, filter_data, horizon, group_by):
-        f = filter_from_store(filter_data)
-        snap = services.snapshot.load(include_archived=f.include_archived)
+        f = workload_filter(filter_from_store(filter_data))
+        snap = services.snapshot.load()
         horizon = int(horizon or snap.settings.default_horizon_weeks)
         group_by = "label" if group_by == "label" else "priority"
         data = workload_data(snap, f, clock.today(), horizon, group_by)
