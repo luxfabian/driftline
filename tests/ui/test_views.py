@@ -14,12 +14,13 @@ from pmtool.ui.formatting import (
     FLAG_OVERDUE,
     FLAG_OVERRUN,
     FLAG_STALE,
+    filter_text,
     label_options,
     lookups,
     milestone_options,
     task_options,
 )
-from pmtool.ui.pages.tasks import filter_text, task_rows
+from pmtool.ui.pages.tasks import task_rows
 from tests.factories import TODAY, D, make_milestone, make_task
 from tests.helpers import T0
 

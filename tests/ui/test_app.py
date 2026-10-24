@@ -19,9 +19,10 @@ from tests.helpers import T0
 
 
 def component_ids(component) -> list[str]:
+    """String IDs in a layout tree; pattern-matching (dict) IDs are left out."""
     found = [getattr(component, "id", None)]
     found += [getattr(c, "id", None) for c in component._traverse()]
-    return [i for i in found if i is not None]
+    return [i for i in found if isinstance(i, str)]
 
 
 def callback_ids(app: dash.Dash) -> set[str]:
@@ -31,7 +32,7 @@ def callback_ids(app: dash.Dash) -> set[str]:
         outputs = cb["output"].strip(".").split("...")
         used.update(o.split("@")[0].rsplit(".", 1)[0] for o in outputs)
         used.update(dep["id"] for dep in cb["inputs"] + cb["state"])
-    return used
+    return {i for i in used if not i.startswith("{")}  # pattern-matching IDs are JSON
 
 
 class AppSmokeTest(unittest.TestCase):

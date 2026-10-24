@@ -90,3 +90,56 @@ REBASELINE_MODAL = "rebaseline-modal"
 REBASELINE_REASON = "rebaseline-reason"
 REBASELINE_OK = "rebaseline-ok"
 REBASELINE_CANCEL = "rebaseline-cancel"
+
+# --- links that open the task detail (pattern-matching ID) ----------------------------
+OPEN_TASK = "open-task"
+
+
+def open_task(task_id: int, key: str) -> dict[str, object]:
+    """``key`` keeps IDs unique when the same task is linked more than once."""
+    return {"type": OPEN_TASK, "index": task_id, "key": key}
+
+
+# --- dashboard ---------------------------------------------------------------------
+DASH_FILTER_TEXT = "dash-filter-text"
+DASH_KPIS = "dash-kpis"
+DASH_DELAYED = "dash-delayed"
+DASH_MS_WARNINGS = "dash-ms-warnings"
+DASH_DEP_WARNINGS = "dash-dep-warnings"
+
+# --- timeline ----------------------------------------------------------------------
+TIMELINE_GRAPH = "timeline-graph"
+TIMELINE_MILESTONES = "timeline-show-milestones"
+
+# --- milestones page ---------------------------------------------------------------
+MS_GRID = "ms-grid"
+MS_FILTER_TEXT = "ms-filter-text"
+MS_NEW = "ms-new"
+MS_EDIT = "ms-edit"
+MS_ACHIEVE = "ms-achieve"
+MS_REOPEN = "ms-reopen"
+MS_REBASELINE = "ms-rebaseline"
+MS_ARCHIVE = "ms-archive"
+MS_DIALOG = "ms-dialog"
+MS_DIALOG_TITLE = "ms-dialog-title"
+MS_DIALOG_MODE = "ms-dialog-mode"  # store: {"mode": ..., "ids": [...]}
+MS_ROW_NAME = "ms-row-name"
+MS_ROW_DESCRIPTION = "ms-row-description"
+MS_ROW_DATE = "ms-row-date"
+MS_ROW_REASON = "ms-row-reason"
+MS_DATE_LABEL = "ms-date-label"
+MS_NAME = "ms-name"
+MS_DESCRIPTION = "ms-description"
+MS_DATE = "ms-date"
+MS_REASON = "ms-reason"
+MS_SAVE = "ms-save"
+MS_CANCEL = "ms-cancel"
+MTA_SELECT = "mta-select"
+MTA_GRAPH = "mta-graph"
+
+# --- workload ----------------------------------------------------------------------
+WL_HORIZON = "wl-horizon"
+WL_GROUP_BY = "wl-group-by"
+WL_RATIO = "wl-ratio"
+WL_CUMULATIVE = "wl-cumulative"
+WL_WEEKLY = "wl-weekly"

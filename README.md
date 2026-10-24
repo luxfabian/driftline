@@ -11,11 +11,12 @@ Specifications: `docs/requirements.txt`, `docs/data_model_spec.md`, `docs/archit
 | 2 Repositories + services | 8 repositories; task, milestone, baseline, settings, snapshot services; every R-xx / VAL-xx rule tested | done |
 | 3 Calculations | calendar, status, schedule, workload, filters | done |
 | 4 UI shell + Tasks | app shell, filter panel, Tasks grid with bulk actions, task form, task detail, confirm dialog, demo seed script | done |
-| 5 Views | Dashboard, Timeline, Milestones (MTA), Workload | next |
-| 6–7 | I/O, hardening | open |
+| 5 Views | Dashboard, Timeline (Gantt), Milestones (table, actions, trend analysis), Workload; pure chart builders | done |
+| 6 Settings + I/O | Settings page, export, import, archive management | next |
+| 7 | hardening | open |
 
-Export and import services exist as placeholders and arrive in phase 6. The
-Dashboard, Timeline, Milestones, Workload and Settings pages are placeholders until then.
+Export and import services exist as placeholders and arrive in phase 6, as does the
+Settings page.
 
 ## Interpretations made in phase 2 (marked `TODO(spec)` where open)
 
@@ -54,6 +55,28 @@ Dashboard, Timeline, Milestones, Workload and Settings pages are placeholders un
 - The detail panel reloads after every successful write, so unsaved edits in its form
   are replaced when you, for example, add a comment first.
 
+## Interpretations made in phase 5
+
+- Dashboard KPIs, the delayed list and the load ratio follow the filter. Milestone and
+  dependency warnings are checked against all active tasks (a predecessor outside the
+  filter can still be late) and listed for the filtered tasks.
+- Milestones only react to the milestone and "include archived" filters; their table and
+  trend chart state exactly that part of the filter.
+- Chart colors follow their job: task status uses fixed status colors (blocked bars are also
+  hatched, as red/green alone is not colorblind-safe), priority uses one blue ramp (darkest =
+  Critical), labels and milestones get fixed categorical slots keyed by the item, so a
+  filter never repaints the rest. With more than eight labels, the rest share "Other".
+- The weekly chart's first week shows the capacity of the full Mon–Sun week even when
+  today is late in that week (phase 3 `weekly_capacity`); the cumulative chart counts
+  capacity from today only. `TODO(spec)`: decide whether the first week should be prorated.
+- Charts use a light theme only (the app has no dark mode).
+
+## Backlog (UI iteration after phase 7)
+
+- Timeline: draw task dependencies (predecessor -> successor arrows) in the Gantt chart.
+- Weekly workload chart: decide whether the current week's capacity counts from today
+  (see phase 5 notes).
+
 ## Setup
 
 ```bash
@@ -81,7 +104,9 @@ python scripts/seed_demo.py --force               # replace an existing database
 
 The script creates 30 tasks, 4 milestones and 8 weeks of history (slips, re-baselines,
 milestone drift, blocked, at-risk, stale and overdue tasks), all relative to today.
-To try it without touching your own data:
+Quickest way to try it without touching your own data: `scripts/demo.sh` rebuilds a demo
+project in `~/.pmtool-demo` and starts it on http://127.0.0.1:8051 (`--keep` keeps your
+changes from the last run). Or by hand:
 
 ```bash
 mkdir -p /tmp/pmdemo && python scripts/seed_demo.py --db /tmp/pmdemo/pmtool.db --force

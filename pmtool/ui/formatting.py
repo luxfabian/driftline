@@ -8,6 +8,7 @@ from typing import Any
 
 from pmtool.calc.status import is_effort_overrun, is_overdue, is_stale
 from pmtool.domain.enums import Priority, TaskStatus
+from pmtool.domain.filters import Filter, describe
 from pmtool.domain.models import Snapshot, Task
 
 AT_RISK_MARK = "⚠"
@@ -125,3 +126,10 @@ def priority_options(as_text: bool = False) -> list[dict[str, int | str]]:
     return [
         {"label": priority_label(p), "value": str(int(p)) if as_text else int(p)} for p in Priority
     ]
+
+
+def filter_text(snap: Snapshot, f: Filter) -> str:
+    """One-line filter summary with label and milestone names [FUN-10]."""
+    labels = {lb.id: lb.name for lb in snap.labels}
+    milestones = {m.id: m.name for m in snap.milestones}
+    return describe(f, labels, milestones)

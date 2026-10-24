@@ -12,7 +12,13 @@ from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 from typing import Any, Literal
 
-from pmtool.domain.commands import UNLINK, TaskCreate, TaskUpdate
+from pmtool.domain.commands import (
+    UNLINK,
+    MilestoneCreate,
+    MilestoneUpdate,
+    TaskCreate,
+    TaskUpdate,
+)
 from pmtool.domain.enums import Priority
 from pmtool.errors import ConfirmationRequired, DomainError, ValidationError
 from pmtool.services import Services
@@ -143,6 +149,63 @@ def _rebaseline(services: Services, a: Action, confirmed: bool) -> tuple[str, st
     return f"{_tasks(ids)} re-baselined.", batch_id
 
 
+def _create_milestone(services: Services, a: Action, confirmed: bool) -> tuple[str, int]:
+    milestone_id = services.milestones.create(
+        MilestoneCreate(
+            name=a.get("name") or "",
+            forecast_date=parse_date(a.get("forecast_date")),
+            description=a.get("description"),
+        )
+    )
+    return f"Milestone {milestone_id} created.", milestone_id
+
+
+def _update_milestone(services: Services, a: Action, confirmed: bool) -> tuple[str, None]:
+    milestone_id = int(a["milestone_id"])
+    services.milestones.update(
+        MilestoneUpdate(
+            milestone_id=milestone_id,
+            name=a.get("name") or "",
+            description=a.get("description") or "",  # "" clears
+            forecast_date=_required_date(a.get("forecast_date"), "Forecast date is required."),
+            reason=a.get("reason"),
+        )
+    )
+    return f"Milestone {milestone_id} saved.", None
+
+
+def _achieve_milestone(services: Services, a: Action, confirmed: bool) -> tuple[str, None]:
+    milestone_id = int(a["milestone_id"])
+    services.milestones.set_achieved(milestone_id, parse_date(a.get("achieved_date")))
+    return f"Milestone {milestone_id} achieved.", None
+
+
+def _reopen_milestone(services: Services, a: Action, confirmed: bool) -> tuple[str, None]:
+    milestone_id = int(a["milestone_id"])
+    services.milestones.reopen(milestone_id)
+    return f"Milestone {milestone_id} reopened.", None
+
+
+def _rebaseline_milestones(services: Services, a: Action, confirmed: bool) -> tuple[str, str]:
+    ids = _milestone_ids(a)
+    batch_id = services.baselines.rebaseline_milestones(ids, a.get("reason") or "")
+    return f"{_milestones(ids)} re-baselined.", batch_id
+
+
+def _archive_milestones(services: Services, a: Action, confirmed: bool) -> tuple[str, None]:
+    ids = _milestone_ids(a)
+    for milestone_id in ids:
+        services.milestones.archive(milestone_id)
+    return f"{_milestones(ids)} archived.", None
+
+
+def _restore_milestones(services: Services, a: Action, confirmed: bool) -> tuple[str, None]:
+    ids = _milestone_ids(a)
+    for milestone_id in ids:
+        services.milestones.restore(milestone_id)
+    return f"{_milestones(ids)} restored.", None
+
+
 _HANDLERS: dict[str, Callable[[Services, Action, bool], tuple[str, Any]]] = {
     "create_task": _create_task,
     "save_task": _save_task,
@@ -153,6 +216,13 @@ _HANDLERS: dict[str, Callable[[Services, Action, bool], tuple[str, Any]]] = {
     "archive_tasks": _archive,
     "restore_tasks": _restore,
     "rebaseline_tasks": _rebaseline,
+    "create_milestone": _create_milestone,
+    "update_milestone": _update_milestone,
+    "achieve_milestone": _achieve_milestone,
+    "reopen_milestone": _reopen_milestone,
+    "rebaseline_milestones": _rebaseline_milestones,
+    "archive_milestones": _archive_milestones,
+    "restore_milestones": _restore_milestones,
 }
 
 
@@ -170,10 +240,21 @@ def _tasks(ids: list[int]) -> str:
     return f"Task {ids[0]}" if len(ids) == 1 else f"{len(ids)} tasks"
 
 
-def _required_date(value: Any):
+def _milestone_ids(a: Action) -> list[int]:
+    ids = sorted({int(i) for i in a.get("milestone_ids") or ()})
+    if not ids:
+        raise ValidationError("UI-01", "Select at least one milestone.")
+    return ids
+
+
+def _milestones(ids: list[int]) -> str:
+    return f"Milestone {ids[0]}" if len(ids) == 1 else f"{len(ids)} milestones"
+
+
+def _required_date(value: Any, message: str = "Start and end date are required."):
     parsed = parse_date(value)
     if parsed is None:
-        raise ValidationError("VAL-01", "Start and end date are required.")
+        raise ValidationError("VAL-01", message)
     return parsed
 
 

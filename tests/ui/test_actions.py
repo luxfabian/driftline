@@ -4,7 +4,9 @@ from __future__ import annotations
 
 import json
 import unittest
+from datetime import timedelta
 
+from pmtool.domain.commands import MilestoneUpdate
 from pmtool.domain.enums import TaskStatus
 from pmtool.ui.actions import execute
 from tests.services.base import ServiceTestCase
@@ -179,6 +181,58 @@ class SmallActionsTest(ServiceTestCase):
         ok = execute(self.svc, {"kind": "rebaseline_tasks", "task_ids": [self.a, self.b],
                                 "reason": "New plan"})  # fmt: skip
         self.assertTrue(ok.ok)
+
+
+class MilestoneActionsTest(ServiceTestCase):
+    def test_create_edit_achieve_reopen(self):
+        created = execute(self.svc, {"kind": "create_milestone", "name": "Review",
+                                     "description": "", "forecast_date": "2026-11-30"})  # fmt: skip
+        self.assertTrue(created.ok, created.message)
+        ms_id = created.result
+        edit = {
+            "kind": "update_milestone",
+            "milestone_id": ms_id,
+            "name": "Review",
+            "description": "",
+            "forecast_date": "2026-12-04",
+            "reason": "Partner late",
+        }
+        self.assertTrue(execute(self.svc, edit).ok)
+        edits = self.log("milestone", ms_id, "edit")
+        self.assertEqual([(e["new_value"], e["reason"]) for e in edits],
+                         [("2026-12-04", "Partner late")])  # fmt: skip
+        achieved = execute(self.svc, {"kind": "achieve_milestone", "milestone_id": ms_id,
+                                      "achieved_date": "2026-12-01"})  # fmt: skip
+        self.assertTrue(achieved.ok)
+        ms = self.svc.milestones.get(ms_id)
+        self.assertEqual(
+            (ms.status.value, ms.forecast_date.isoformat()), ("achieved", "2026-12-01")
+        )
+        self.assertEqual(execute(self.svc, {**edit, "forecast_date": "2026-12-24"}).status,
+                         "error")  # R-09: reopen first  # fmt: skip
+        self.assertTrue(execute(self.svc, {"kind": "reopen_milestone", "milestone_id": ms_id}).ok)
+
+    def test_create_needs_name_and_date(self):
+        no_name = execute(self.svc, {"kind": "create_milestone", "name": " ",
+                                     "forecast_date": "2026-11-30"})  # fmt: skip
+        self.assertEqual(no_name.status, "error")
+        no_date = execute(self.svc, {"kind": "create_milestone", "name": "M", "forecast_date": ""})
+        self.assertEqual(no_date.status, "error")
+
+    def test_rebaseline_archive_restore(self):
+        a, b = self.make_milestone(), self.make_milestone(name="Other")
+        later = self.svc.milestones.get(a).forecast_date + timedelta(days=5)
+        self.svc.milestones.update(MilestoneUpdate(a, forecast_date=later))
+        no_reason = execute(self.svc, {"kind": "rebaseline_milestones", "milestone_ids": [a, b]})
+        self.assertEqual(no_reason.status, "error")
+        ok = execute(self.svc, {"kind": "rebaseline_milestones", "milestone_ids": [a, b],
+                                "reason": "New plan"})  # fmt: skip
+        self.assertTrue(ok.ok)
+        self.assertEqual(len(self.log("milestone", a, "rebaseline")), 1)
+        execute(self.svc, {"kind": "archive_milestones", "milestone_ids": [a, b]})
+        self.assertTrue(self.svc.milestones.get(b).is_archived)
+        execute(self.svc, {"kind": "restore_milestones", "milestone_ids": [b]})
+        self.assertFalse(self.svc.milestones.get(b).is_archived)
 
 
 if __name__ == "__main__":

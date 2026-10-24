@@ -10,7 +10,7 @@ from __future__ import annotations
 from collections.abc import Sequence
 
 import dash_bootstrap_components as dbc
-from dash import Dash, Input, Output, State, ctx, dcc, html, no_update
+from dash import ALL, Dash, Input, Output, State, ctx, dcc, html, no_update
 
 from pmtool.calc.schedule import dependency_warnings
 from pmtool.domain.enums import ChangeKind, CommentKind, TaskStatus
@@ -249,6 +249,18 @@ def successor_list(successors: Sequence[Task]) -> list:
 
 def register_callbacks(app: Dash, services: Services) -> None:
     register_label_options(app, FORM)
+
+    @app.callback(
+        Output(ids.SELECTED_TASK, "data", allow_duplicate=True),
+        Output(ids.DETAIL, "is_open", allow_duplicate=True),
+        Input({"type": ids.OPEN_TASK, "index": ALL, "key": ALL}, "n_clicks"),
+        prevent_initial_call=True,
+    )
+    def open_from_link(_clicks):
+        """Any ``ids.open_task`` link opens the panel; new links (n_clicks None) do not."""
+        if not ctx.triggered or not ctx.triggered[0]["value"] or not ctx.triggered_id:
+            return no_update, no_update
+        return ctx.triggered_id["index"], True
 
     @app.callback(
         Output(FORM.milestone, "options"),

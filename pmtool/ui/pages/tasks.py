@@ -13,12 +13,18 @@ import dash_bootstrap_components as dbc
 from dash import Dash, Input, Output, State, ctx, html, no_update
 
 from pmtool.calc.schedule import dependency_warnings, task_variance
-from pmtool.domain.filters import Filter, apply_filter, describe
+from pmtool.domain.filters import Filter, apply_filter
 from pmtool.domain.models import Snapshot
 from pmtool.services import Services
 from pmtool.ui import ids
 from pmtool.ui.feedback import NO_FEEDBACK, run, write_outputs
-from pmtool.ui.formatting import AT_RISK_MARK, FLAG_OVERDUE, priority_label, task_flags
+from pmtool.ui.formatting import (
+    AT_RISK_MARK,
+    FLAG_OVERDUE,
+    filter_text,
+    priority_label,
+    task_flags,
+)
 from pmtool.ui.state import filter_from_store
 
 PATH = "/tasks"
@@ -76,12 +82,6 @@ def task_rows(snap: Snapshot, f: Filter, today: date, now: datetime) -> list[dic
             }
         )  # fmt: skip
     return rows
-
-
-def filter_text(snap: Snapshot, f: Filter) -> str:
-    labels = {lb.id: lb.name for lb in snap.labels}
-    milestones = {m.id: m.name for m in snap.milestones}
-    return describe(f, labels, milestones)
 
 
 # --- layout ------------------------------------------------------------------------
