@@ -8,10 +8,12 @@ kept in PENDING_ACTION.
 
 from __future__ import annotations
 
+import logging
 from typing import Any
 
-from dash import Output, no_update
+from dash import Output, no_update, set_props
 
+from pmtool.errors import DomainError
 from pmtool.services import Services
 from pmtool.ui import ids
 from pmtool.ui.actions import Action, Outcome, execute
@@ -58,3 +60,23 @@ def close_confirm(values: tuple[Any, ...]) -> tuple[Any, ...]:
     result = list(values)
     result[_MODAL_OPEN], result[_PENDING] = False, None
     return tuple(result)
+
+
+logger = logging.getLogger("pmtool.ui")
+
+
+def on_callback_error(err: Exception) -> None:
+    """App-wide handler for exceptions no callback caught (``Dash(on_error=...)``).
+
+    Every failure becomes a visible toast instead of a silently stale page; the
+    full traceback goes to the log file.
+    """
+    if isinstance(err, DomainError):
+        header, message = "Not saved", err.message
+    else:
+        logger.exception("Unexpected error in a callback", exc_info=err)
+        header = "Something went wrong"
+        message = (f"{type(err).__name__}: {err}. "
+                   "Details are in the log file (pmtool.log).")  # fmt: skip
+    set_props(ids.TOAST, {"is_open": True, "header": header, "children": message,
+                          "icon": "danger"})  # fmt: skip

@@ -8,6 +8,7 @@ while the confirm modal is open, and is then repeated with ``confirmed=True``
 
 from __future__ import annotations
 
+import logging
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 from typing import Any, Literal
@@ -25,6 +26,7 @@ from pmtool.services import Services
 from pmtool.ui.state import parse_date
 
 Action = Mapping[str, Any]
+logger = logging.getLogger("pmtool.ui")
 
 
 @dataclass(frozen=True)
@@ -51,6 +53,9 @@ def execute(services: Services, action: Action, confirmed: bool = False) -> Outc
         return Outcome("confirm", exc.message, action=dict(action))
     except DomainError as exc:
         return Outcome("error", exc.message)
+    except (KeyError, TypeError, ValueError) as exc:  # malformed action, not a user error
+        logger.exception("Invalid action %r", kind)
+        return Outcome("error", f"Invalid request ({type(exc).__name__}). Details are in the log.")
     return Outcome("ok", message, result=result)
 
 

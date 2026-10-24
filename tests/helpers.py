@@ -1,7 +1,7 @@
 """Shared test helpers (plain functions so the tests run with unittest and pytest).
 
-TODO(spec): move to pytest fixtures/factories in tests/conftest.py in phase 2
-(make_task, make_milestone), once pytest is available in the environment.
+Architecture §11 names tests/conftest.py fixtures; plain modules are used on
+purpose instead, so ``python -m unittest discover`` keeps working without pytest.
 """
 
 from __future__ import annotations

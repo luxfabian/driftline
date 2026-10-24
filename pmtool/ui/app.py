@@ -10,6 +10,7 @@ from dash import Dash, Input, Output
 from pmtool.services import Services
 from pmtool.ui import ids
 from pmtool.ui.components import confirm_modal, filter_panel, task_detail, task_form
+from pmtool.ui.feedback import on_callback_error
 from pmtool.ui.formatting import lookups
 from pmtool.ui.layout import shell
 from pmtool.ui.pages import dashboard, milestones, settings, tasks, timeline, workload
@@ -31,6 +32,7 @@ def create_app(services: Services) -> Dash:
         suppress_callback_exceptions=True,  # page components appear after navigation
         title="pmtool",
         update_title=None,
+        on_error=on_callback_error,  # any uncaught error -> toast + log (phase 7)
     )
     for order, page in enumerate(PAGES):
         dash.register_page(

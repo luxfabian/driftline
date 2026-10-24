@@ -1,6 +1,6 @@
 """Pure domain-object factories for calc and filter tests (architecture §11).
 
-TODO(spec): expose as pytest fixtures in tests/conftest.py once pytest runs here.
+Plain functions rather than pytest fixtures, so the suite also runs under unittest.
 """
 
 from __future__ import annotations

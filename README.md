@@ -1,133 +1,165 @@
 # pmtool — personal project management
 
-Local, single-user tool for workload forecasting and schedule tracking.
-Specifications: `docs/requirements.txt`, `docs/data_model_spec.md`, `docs/architecture_spec.md`.
+A local, single-user tool to plan your own work, forecast workload against the time you
+actually have, and track how tasks and milestones drift from their baseline. It runs in
+your browser on your own computer; nothing leaves the machine and no internet is needed.
 
-## Status
+Specifications: [`docs/requirements.txt`](docs/requirements.txt),
+[`docs/data_model_spec.md`](docs/data_model_spec.md),
+[`docs/architecture_spec.md`](docs/architecture_spec.md).
+
+## Install
+
+Python 3.11 or newer.
+
+```bash
+python -m venv .venv
+source .venv/bin/activate          # Windows: .venv\Scripts\activate
+pip install -e ".[dev]"            # or: pip install .   (without test tools)
+```
+
+## Start
+
+```bash
+python -m pmtool                   # or just: pmtool
+```
+
+Open http://127.0.0.1:8050. Stop with Ctrl+C. The tool only listens on your own computer.
+
+| Setting | Default | Change with |
+|---|---|---|
+| Data folder (database, backups, log) | `~/.pmtool/` | `PMTOOL_DATA_DIR=/path` |
+| Port | 8050 | `PMTOOL_PORT=8060` |
+
+Every start backs up the database to `<data folder>/backups/` and keeps the newest 10
+(configurable in Settings). Errors are shown as messages in the app and written to
+`<data folder>/pmtool.log`.
+
+### Try it with demo data
+
+```bash
+scripts/demo.sh                    # demo project in ~/.pmtool-demo on http://127.0.0.1:8051
+scripts/demo.sh --keep             # restart it without resetting your changes
+```
+
+The demo has 30 tasks, 4 milestones and 8 weeks of history (slips, re-baselines, milestone
+drift, blocked, at-risk, stale and overdue tasks), all relative to today. Your own data in
+`~/.pmtool` is never touched. To seed another file by hand:
+`python scripts/seed_demo.py --db /path/pmtool.db [--force]`.
+
+## What's in the app
+
+| Page | What you do there |
+|---|---|
+| **Dashboard** | Load ratio for the next weeks (OK / Tight / Overloaded), counts of overdue, at-risk, blocked and stale tasks, the most delayed items, milestone and dependency warnings. Click a task to open it. |
+| **Tasks** | Sortable, filterable table. Click a row for details: edit, labels, milestone, at-risk flag, dependencies, comments and full change history. Select rows to mark them reviewed, re-baseline or archive them. "+ New task" is in the top bar. |
+| **Timeline** | Gantt chart: forecast bars by status inside baseline outlines, milestones as diamonds, today line. Click a bar to open the task. |
+| **Milestones** | Create, edit (with a reason), mark achieved, reopen, re-baseline, archive. The trend chart shows how each forecast moved over time. |
+| **Workload** | Whether the work fits (cumulative demand vs. capacity, shortfall shaded) and where the peaks are (weekly load by priority or label), for 1–12 weeks. |
+| **Settings** | Working hours and days, plannable share, thresholds, absences, public holidays; export to Excel or CSV; import tasks from CSV; restore or permanently delete archived items. |
+
+The **filter** on the left applies to every page except Settings, and every chart says
+which filter is active.
+
+### Importing tasks from CSV
+
+UTF-8, comma-separated, with a header row ("Download CSV template" in Settings gives an
+example). Required columns: `title, forecast_start, forecast_end, estimated_effort_h`
+(dates as `YYYY-MM-DD`). Optional: `priority` (1–4 or Critical/High/Medium/Low),
+`labels` (separated by `;`), `description`. Other columns are ignored, so an exported
+`tasks.csv` imports as is. If any row is invalid, nothing is imported and every problem
+is listed with its line number.
+
+## Development
+
+```bash
+pytest                              # all tests (incl. performance, ~10 s)
+pytest -m "not perf"                # skip the performance tests
+python -m unittest discover -s tests -t .   # same suite without pytest
+ruff check . && ruff format --check .
+```
+
+Layers (one-way): `ui → services → repo → db`, `ui → calc → domain`; a test enforces the
+import rules. Writes go through services (one transaction per user action, change log in
+the same transaction); `calc/` and the chart builders in `ui/charts.py` are pure.
+
+### Status
 
 | Phase | Content | State |
 |---|---|---|
 | 1 Foundation | config, clock, errors, database (schema, migrations, backup), domain models | done |
 | 2 Repositories + services | 8 repositories; task, milestone, baseline, settings, snapshot services; every R-xx / VAL-xx rule tested | done |
 | 3 Calculations | calendar, status, schedule, workload, filters | done |
-| 4 UI shell + Tasks | app shell, filter panel, Tasks grid with bulk actions, task form, task detail, confirm dialog, demo seed script | done |
-| 5 Views | Dashboard, Timeline (Gantt), Milestones (table, actions, trend analysis), Workload; pure chart builders | done |
-| 6 Settings + I/O | Settings page (capacity, thresholds, absences, holidays), Excel/CSV export, CSV import, archive management | done |
-| 7 Hardening | perf test, error toasts for every DomainError path, README | next |
+| 4 UI shell + Tasks | app shell, filter panel, Tasks grid with bulk actions, task form and detail, confirm dialog, demo data | done |
+| 5 Views | Dashboard, Timeline, Milestones (with trend analysis), Workload; pure chart builders | done |
+| 6 Settings + I/O | Settings page, Excel/CSV export, CSV import, archive management | done |
+| 7 Hardening | performance test (NFR-05), error messages for every failure path, this README | done |
 
-## Interpretations made in phase 2 (marked `TODO(spec)` where open)
+Performance (NFR-05, `tests/perf/`): with 500 tasks and 5,000 history entries, loading the
+data takes about 20 ms and the slowest view's calculations and charts about 65 ms on a
+standard laptop; the test fails above 1.5 s.
 
-- A status equal to the current one counts as "unchanged", so a full edit form can
-  resend it. Setting remaining effort > 0 on a done task therefore triggers R-05.
+### Decisions where the specification was open
+
+Data and rules (phase 2)
+- A status equal to the current one counts as "unchanged", so a full edit form can resend
+  it. Setting remaining effort > 0 on a done task therefore asks for confirmation (R-05).
 - Archived tasks and milestones cannot be edited, commented or re-baselined until restored.
-- "Re-baseline all" covers open tasks and open milestones only; done tasks and
-  achieved milestones keep their baseline so their final variance stays visible.
+- "Re-baseline all" covers open tasks and open milestones only; done tasks and achieved
+  milestones keep their baseline so their final variance stays visible.
 - An achieved milestone's forecast is locked to its achieved date; reopen it to change it.
 
-## Interpretations made in phase 3
+Calculations (phase 3)
+- If a task's interval [max(today, start), end] has no working day, its effort goes to the
+  next working day on or after max(today, start): today (or the next working day) for
+  overdue tasks, the following Monday for a future weekend-only task.
+- If no working day exists within a year (e.g. a very long absence), the effort stays on
+  the interval start so no hours disappear from the chart.
+- Milestone trend lines are staircases carried forward to today, or to the achieved date
+  for achieved milestones, so those end on the diagonal.
+- Dependency warnings only concern open successors. The delayed list shows open tasks (by
+  end-date variance) and open milestones that are late.
 
-- Workload spreading: if a task's interval [max(today, start), end] has no working day,
-  its effort goes to the next working day on or after max(today, start). For overdue
-  tasks that is today (or the next working day); for a future weekend-only task it is
-  the following Monday, not today.
-- If no working day exists within a year (e.g. a very long absence), the effort is
-  kept on the interval start so no hours disappear from the chart.
-- Milestone trend lines are staircases: a value is carried forward until the day it
-  changes, then the line steps to the new value. The line extends to today, or to the
-  achieved date for achieved milestones (pass it as `until`), so those end on the diagonal.
-- Dependency warnings only concern open successors; done tasks are not flagged.
-- Top delayed list: open tasks (by end-date variance) and open milestones, late only.
-
-## Interpretations made in phase 4
-
+User interface (phases 4–6)
 - Writes run as JSON "actions" (`pmtool/ui/actions.py`), so an action waiting for
-  confirmation (R-05) can be repeated exactly with `confirmed=True`.
-- The edit form saves fields and labels with one click, as two service calls
-  (`TODO(spec)` in `actions.py`). If the field update fails, labels are not saved.
-- Bulk actions (mark reviewed, archive) run one transaction per task; re-baseline is
-  one batch. If a bulk action fails part-way, the tasks before the failure stay changed.
+  confirmation (R-05, R-11) is repeated exactly with `confirmed=True`.
+- Bulk actions (mark reviewed, archive) run one transaction per task; re-baseline is one
+  batch. If a bulk action fails part-way, the tasks before the failure stay changed.
+- Archived milestones and tasks stay in the dropdowns, disabled and marked "(archived)",
+  so existing links are shown and not removed by saving a form.
+- Forms reload after every successful save, so unsaved edits elsewhere in the same panel
+  (e.g. the task form when you add a comment, the settings form when you add a holiday)
+  are replaced.
+- Dashboard numbers, the delayed list and the load ratio follow the filter; milestone and
+  dependency warnings are checked against all active tasks. Milestones only react to the
+  milestone and "include archived" filters, and their page states exactly that part.
+- Chart colors follow their job: status colors for task states (blocked bars are also
+  hatched, since red/green alone is not colorblind-safe), one blue ramp for priority, fixed
+  colors per label and milestone that do not change with the filter; more than eight
+  labels share "Other". Light theme only.
 - Bootstrap's CSS is bundled in `pmtool/ui/assets/`, so the app works offline (NFR-01).
-- Archived milestones and tasks still appear in the dropdowns, disabled and marked
-  "(archived)", so existing links display and are not removed by saving the form.
-- The detail panel reloads after every successful write, so unsaved edits in its form
-  are replaced when you, for example, add a comment first.
+- Export contains everything, archived items included. CSV files are UTF-8 with a byte
+  order mark so Excel shows umlauts; Excel cells hold real dates and timestamps as ISO text.
+- Import creates new planned tasks from the plan columns only; status, remaining effort,
+  milestone and dependencies in the file are ignored, and duplicates are not checked.
 
-## Interpretations made in phase 5
+Hardening (phase 7)
+- Any error a page does not handle itself becomes a message in the app ("Something went
+  wrong …") and a full traceback in `pmtool.log`, via Dash's global `on_error` handler.
+- The tests use plain helper modules instead of the `tests/conftest.py` fixtures named in
+  the architecture, so the suite also runs with `unittest`.
 
-- Dashboard KPIs, the delayed list and the load ratio follow the filter. Milestone and
-  dependency warnings are checked against all active tasks (a predecessor outside the
-  filter can still be late) and listed for the filtered tasks.
-- Milestones only react to the milestone and "include archived" filters; their table and
-  trend chart state exactly that part of the filter.
-- Chart colors follow their job: task status uses fixed status colors (blocked bars are also
-  hatched, as red/green alone is not colorblind-safe), priority uses one blue ramp (darkest =
-  Critical), labels and milestones get fixed categorical slots keyed by the item, so a
-  filter never repaints the rest. With more than eight labels, the rest share "Other".
-- The weekly chart's first week shows the capacity of the full Mon–Sun week even when
-  today is late in that week (phase 3 `weekly_capacity`); the cumulative chart counts
-  capacity from today only. `TODO(spec)`: decide whether the first week should be prorated.
-- Charts use a light theme only (the app has no dark mode).
+### Open points (`TODO(spec)` in the code)
 
-## Interpretations made in phase 6
+- Saving the task form writes fields and labels as two service calls
+  (`pmtool/ui/actions.py`); if the field update fails, labels are not saved either.
+- "Re-baseline all" = open items only (`pmtool/services/baseline_service.py`).
+- Weekly workload chart: the current week shows the capacity of the full Mon–Sun week even
+  late in the week (`calc/workload.weekly_capacity`); the cumulative chart counts from today.
 
-- Export contains all tasks, milestones, comments and change history, archived items
-  included. CSV files are UTF-8 with a byte order mark so Excel shows umlauts; Excel
-  cells hold real dates, timestamps are ISO text (Excel has no time zones).
-- Import creates new planned tasks from the plan columns only (title, dates, estimate,
-  priority, labels, description). Status, remaining effort, milestone and dependencies of
-  an exported file are ignored, so "export -> fresh DB -> import" restores the plan, not
-  the history. Rows are not checked for duplicates of existing tasks.
-- Import also accepts priority names (Critical/High/Medium/Low) and a decimal comma in
-  the effort ("1,5" in quotes). Header names are case-insensitive; other columns are ignored.
-- Saving settings and adding absences/holidays reload the page's lists, which also resets
-  unsaved edits in the settings form.
+### Backlog (next UI iteration)
 
-## Backlog (UI iteration after phase 7)
-
-- Timeline: draw task dependencies (predecessor -> successor arrows) in the Gantt chart.
-- Weekly workload chart: decide whether the current week's capacity counts from today
-  (see phase 5 notes).
-
-## Setup
-
-```bash
-python -m venv .venv
-source .venv/bin/activate          # Windows: .venv\Scripts\activate
-pip install -e ".[dev]"
-```
-
-## Run
-
-```bash
-python -m pmtool
-```
-
-Then open http://127.0.0.1:8050 (port: `PMTOOL_PORT`). The database lives in
-`~/.pmtool/` (override with `PMTOOL_DATA_DIR`); every start makes a backup.
-
-### Demo data
-
-```bash
-python scripts/seed_demo.py                       # into ~/.pmtool/pmtool.db (refuses to overwrite)
-python scripts/seed_demo.py --db /tmp/demo.db     # another file
-python scripts/seed_demo.py --force               # replace an existing database
-```
-
-The script creates 30 tasks, 4 milestones and 8 weeks of history (slips, re-baselines,
-milestone drift, blocked, at-risk, stale and overdue tasks), all relative to today.
-Quickest way to try it without touching your own data: `scripts/demo.sh` rebuilds a demo
-project in `~/.pmtool-demo` and starts it on http://127.0.0.1:8051 (`--keep` keeps your
-changes from the last run). Or by hand:
-
-```bash
-mkdir -p /tmp/pmdemo && python scripts/seed_demo.py --db /tmp/pmdemo/pmtool.db --force
-PMTOOL_DATA_DIR=/tmp/pmdemo python -m pmtool
-```
-
-## Tests
-
-```bash
-pytest                              # or, without pytest:
-python -m unittest discover -s tests -t .
-ruff check . && ruff format --check .
-```
+- Timeline: draw task dependencies (predecessor → successor arrows) in the Gantt chart.
+- Weekly workload chart: decide whether the current week's capacity counts from today.
+- Requirements open points O-01 (time logging), O-02 (plannable share per week),
+  O-03 (gaps in dependency chains).
