@@ -1,6 +1,6 @@
 PERSONAL PROJECT MANAGEMENT TOOL
 REQUIREMENTS SPECIFICATION
-Version: 0.2 (draft)            Date: 2026-10-10
+Version: 0.3 (draft)            Date: 2026-10-24
 
 ==============================================================================
 1  PURPOSE AND SCOPE
@@ -178,12 +178,12 @@ WL-03   The tool shall plot cumulative demand against cumulative plannable
 WL-04   Remaining effort of overdue tasks shall count as due today.      [T]
 WL-05   Tasks with status Blocked shall be included in the demand.       [T]
         Rationale: blocked work still has to be done.
-WL-06   The tool shall provide a weekly stacked bar chart of remaining
-        effort, spread evenly over the working days between
+WL-06   The tool shall provide a weekly stacked line (area) chart of
+        remaining effort, spread evenly over the working days between
         max(today, forecast start) and forecast end, with a capacity line.
-        Bars shall be colorable by priority or label. If this interval
-        contains no working day, the effort shall be assigned to the next
-        working day.                                                     [T]
+        The stacked series shall be colorable by priority or label. If this
+        interval contains no working day, the effort shall be assigned to
+        the next working day.                                            [T]
         Note: WL-03 shows WHETHER the work fits; WL-06 shows WHERE peaks
         occur. WL-03 alone ignores that work cannot start before its start
         date, so both views are needed.
@@ -252,6 +252,13 @@ R-12  No input validation, no performance, backup or test requirements
       -> sections 4.2 and 4.7.
 R-13  No verification methods -> added to every requirement.
 R-14  Spreading rule undefined when no working day remains -> WL-06.
+
+==============================================================================
+6a REVIEW LOG (v0.2 -> v0.3)
+==============================================================================
+R-15  Weekly load chart: stacked bars replaced by a stacked line (area)
+      chart, which reads more calmly over the weeks (decision after the
+      first UI iteration) -> WL-06.
 
 ==============================================================================
 7  OPEN POINTS

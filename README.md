@@ -174,9 +174,8 @@ Features after phase 7
 - Requirements review: the task table now shows start and end variance (SCH-03), Settings
   has "Re-baseline everything" for SCH-02's "all items", and the dashboard marks at-risk
   (⚠) and overdue (brick red) tasks in its lists (FUN-04, FUN-12).
-- Deviation from WL-06: the weekly chart is a stacked line chart instead of stacked bars
-  (requested in the UI iteration); grouping by priority or label and the capacity line are
-  unchanged.
+- WL-06 now asks for a stacked line (area) chart instead of stacked bars (requirements
+  v0.3, review log R-15), matching the weekly chart since the UI iteration.
 
 Hardening (phase 7)
 - Any error a page does not handle itself becomes a message in the app ("Something went
