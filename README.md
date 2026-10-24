@@ -10,7 +10,8 @@ Specifications: [`docs/requirements.txt`](docs/requirements.txt),
 
 ## Install
 
-Python 3.11 or newer.
+Needs Python 3.11 or newer. Run this once in the project folder (the one with
+`pyproject.toml`):
 
 ```bash
 python -m venv .venv
@@ -18,22 +19,58 @@ source .venv/bin/activate          # Windows: .venv\Scripts\activate
 pip install -e ".[dev]"            # or: pip install .   (without test tools)
 ```
 
-## Start
+## Launch the dashboard
 
-```bash
-python -m pmtool                   # or just: pmtool
+1. Open a terminal in the project folder and activate the environment:
+   `source .venv/bin/activate` (Windows: `.venv\Scripts\activate`).
+2. Start the tool:
+
+   ```bash
+   pmtool                             # same as: python -m pmtool
+   ```
+
+   Without activating, `.venv/bin/pmtool` (Windows: `.venv\Scripts\pmtool`) works too.
+3. Open **http://127.0.0.1:8050** in your browser. The app opens on the Dashboard.
+4. Stop it with **Ctrl+C** in the terminal. Your data is saved after every change, so
+   there is nothing to save before stopping.
+
+The terminal shows where the database is and which address to open:
+
+```text
+INFO    pmtool: Database ready at /home/<you>/.pmtool/pmtool.db (schema version 1)
+INFO    pmtool: Open http://127.0.0.1:8050 in your browser
 ```
 
-Open http://127.0.0.1:8050. Stop with Ctrl+C. The tool only listens on your own computer.
+Flask also prints a red "WARNING: This is a development server" line. That is expected:
+the tool is a single-user app that only listens on your own computer (127.0.0.1), so no
+other machine can reach it. If port 8050 is taken, use another one, e.g.
+`PMTOOL_PORT=8060 pmtool` (Windows PowerShell: `$env:PMTOOL_PORT=8060; pmtool`).
 
-| Setting | Default | Change with |
-|---|---|---|
-| Data folder (database, backups, log) | `~/.pmtool/` | `PMTOOL_DATA_DIR=/path` |
-| Port | 8050 | `PMTOOL_PORT=8060` |
+## Where your data is stored
 
-Every start backs up the database to `<data folder>/backups/` and keeps the newest 10
-(configurable in Settings). Errors are shown as messages in the app and written to
-`<data folder>/pmtool.log`.
+Everything lives in one folder, by default `.pmtool` in your home directory:
+
+| Operating system | Default folder |
+|---|---|
+| Linux | `/home/<you>/.pmtool/` |
+| macOS | `/Users/<you>/.pmtool/` |
+| Windows | `C:\Users\<you>\.pmtool\` |
+
+| File | Content |
+|---|---|
+| `pmtool.db` | **The database**: one SQLite file with all tasks, milestones, labels, comments, change history and settings. |
+| `backups/pmtool_YYYYMMDD_HHMMSS.db` | A copy of the database made at every start (not on the very first one); the newest 10 are kept, configurable in Settings. |
+| `pmtool.log` | Log file; errors shown in the app are written here with details. |
+
+The folder and the database are created on the first start. To use another folder, set
+`PMTOOL_DATA_DIR` before starting, e.g. `PMTOOL_DATA_DIR=~/Documents/pm pmtool`
+(Windows PowerShell: `$env:PMTOOL_DATA_DIR="D:\pm"; pmtool`). Each folder is a separate,
+independent project.
+
+- **Back up or move your data:** stop the tool and copy the whole folder.
+- **Restore a backup:** stop the tool, copy the backup file over `pmtool.db`, start again.
+- **Share data with other tools:** use Settings → Export (Excel or CSV) instead of
+  opening the database file directly.
 
 ### Try it with demo data
 
@@ -43,8 +80,9 @@ scripts/demo.sh --keep             # restart it without resetting your changes
 ```
 
 The demo has 30 tasks, 4 milestones and 8 weeks of history (slips, re-baselines, milestone
-drift, blocked, at-risk, stale and overdue tasks), all relative to today. Your own data in
-`~/.pmtool` is never touched. To seed another file by hand:
+drift, blocked, at-risk, stale and overdue tasks), all relative to today. It uses its own
+folder `~/.pmtool-demo` and port 8051, so it can run next to your real data, which it
+never touches. To seed another file by hand:
 `python scripts/seed_demo.py --db /path/pmtool.db [--force]`.
 
 ## What's in the app
@@ -101,7 +139,7 @@ the same transaction); `calc/` and the chart builders in `ui/charts.py` are pure
 | 1 Foundation | config, clock, errors, database (schema, migrations, backup), domain models | done |
 | 2 Repositories + services | 8 repositories; task, milestone, baseline, settings, snapshot services; every R-xx / VAL-xx rule tested | done |
 | 3 Calculations | calendar, status, schedule, workload, filters | done |
-| 4 UI shell + Tasks | app shell, filter panel, Tasks grid with bulk actions, task form and detail, confirm dialog, demo data | done |
+| 4 UI shell + Tasks | app shell, filter (now the filter bar), Tasks grid with bulk actions, task form and detail, confirm dialog, demo data | done |
 | 5 Views | Dashboard, Timeline, Milestones (with trend analysis), Workload; pure chart builders | done |
 | 6 Settings + I/O | Settings page, Excel/CSV export, CSV import, archive management | done |
 | 7 Hardening | performance test (NFR-05), error messages for every failure path, this README | done |
@@ -141,9 +179,8 @@ User interface (phases 4–6)
 - Forms reload after every successful save, so unsaved edits elsewhere in the same panel
   (e.g. the task form when you add a comment, the settings form when you add a holiday)
   are replaced.
-- Dashboard numbers, the delayed list and the load ratio follow the filter; milestone and
-  dependency warnings are checked against all active tasks. Milestones only react to the
-  milestone and "include archived" filters, and their page states exactly that part.
+- Milestone and dependency warnings are checked against all active tasks, so a
+  predecessor outside a filter can still be reported as late.
 - Chart colors follow their job: status colors for task states (blocked bars are also
   hatched), one blue ramp for priority, fixed colors per label and milestone that do not
   change with the filter. Light theme only.
@@ -152,6 +189,12 @@ User interface (phases 4–6)
   order mark so Excel shows umlauts; Excel cells hold real dates and timestamps as ISO text.
 - Import creates new planned tasks from the plan columns only; status, remaining effort,
   milestone and dependencies in the file are ignored, and duplicates are not checked.
+
+Hardening (phase 7)
+- Any error a page does not handle itself becomes a message in the app ("Something went
+  wrong …") and a full traceback in `pmtool.log`, via Dash's global `on_error` handler.
+- The tests use plain helper modules instead of the `tests/conftest.py` fixtures named in
+  the architecture, so the suite also runs with `unittest`.
 
 UI iteration (after phase 7)
 - The sidebar filter was replaced by a filter bar on Tasks, Timeline and Workload; the
@@ -177,12 +220,6 @@ Features after phase 7
 - WL-06 now asks for a stacked line (area) chart instead of stacked bars (requirements
   v0.3, review log R-15), matching the weekly chart since the UI iteration.
 
-Hardening (phase 7)
-- Any error a page does not handle itself becomes a message in the app ("Something went
-  wrong …") and a full traceback in `pmtool.log`, via Dash's global `on_error` handler.
-- The tests use plain helper modules instead of the `tests/conftest.py` fixtures named in
-  the architecture, so the suite also runs with `unittest`.
-
 ### Open points (`TODO(spec)` in the code)
 
 - Saving the task form writes fields and labels as two service calls
@@ -191,8 +228,7 @@ Hardening (phase 7)
 - Weekly workload chart: the current week shows the capacity of the full Mon–Sun week even
   late in the week (`calc/workload.weekly_capacity`); the cumulative chart counts from today.
 
-### Backlog (next UI iteration)
+### Backlog
 
-- Weekly workload chart: decide whether the current week's capacity counts from today.
 - Requirements open points O-01 (time logging), O-02 (plannable share per week),
   O-03 (gaps in dependency chains).
