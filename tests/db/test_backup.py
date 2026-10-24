@@ -8,9 +8,9 @@ import unittest
 from datetime import timedelta
 from pathlib import Path
 
-from pmtool.db.backup import backup_on_start, list_backups, read_keep_count
-from pmtool.db.connection import connect
-from pmtool.db.migrations import apply_migrations
+from driftline.db.backup import backup_on_start, list_backups, read_keep_count
+from driftline.db.connection import connect
+from driftline.db.migrations import apply_migrations
 from tests.helpers import T0, insert_task
 
 
@@ -18,7 +18,7 @@ class BackupTest(unittest.TestCase):
     def setUp(self):
         self._tmp = tempfile.TemporaryDirectory()
         self.dir = Path(self._tmp.name)
-        self.db = self.dir / "pmtool.db"
+        self.db = self.dir / "driftline.db"
         self.backups = self.dir / "backups"
 
     def tearDown(self):
@@ -38,7 +38,7 @@ class BackupTest(unittest.TestCase):
     def test_backup_has_expected_name_and_content(self):
         self._make_db(tasks=3)
         path = backup_on_start(self.db, 10, now=T0)
-        self.assertEqual(path, self.backups / "pmtool_20261010_090000.db")
+        self.assertEqual(path, self.backups / "driftline_20261010_090000.db")
         copy = sqlite3.connect(path)
         self.assertEqual(copy.execute("SELECT count(*) FROM task").fetchone()[0], 3)
         copy.close()
@@ -50,7 +50,11 @@ class BackupTest(unittest.TestCase):
         names = [p.name for p in list_backups(self.backups)]
         self.assertEqual(
             names,
-            ["pmtool_20261010_090200.db", "pmtool_20261010_090300.db", "pmtool_20261010_090400.db"],
+            [
+                "driftline_20261010_090200.db",
+                "driftline_20261010_090300.db",
+                "driftline_20261010_090400.db",
+            ],
         )
 
     def test_same_second_does_not_overwrite(self):

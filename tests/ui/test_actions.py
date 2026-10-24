@@ -6,9 +6,9 @@ import json
 import unittest
 from datetime import timedelta
 
-from pmtool.domain.commands import MilestoneUpdate
-from pmtool.domain.enums import TaskStatus
-from pmtool.ui.actions import execute
+from driftline.domain.commands import MilestoneUpdate
+from driftline.domain.enums import TaskStatus
+from driftline.ui.actions import execute
 from tests.services.base import ServiceTestCase
 
 

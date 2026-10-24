@@ -5,11 +5,11 @@ from __future__ import annotations
 import unittest
 from datetime import date
 
-from pmtool.domain.filters import Filter
-from pmtool.ui import ids
-from pmtool.ui.app import create_app  # noqa: F401 - registers the pages
-from pmtool.ui.components import filter_bar
-from pmtool.ui.state import filter_to_store
+from driftline.domain.filters import Filter
+from driftline.ui import ids
+from driftline.ui.app import create_app  # noqa: F401 - registers the pages
+from driftline.ui.components import filter_bar
+from driftline.ui.state import filter_to_store
 from tests.ui.test_app import component_ids
 
 

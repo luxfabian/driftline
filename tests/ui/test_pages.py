@@ -6,20 +6,20 @@ import unittest
 from dataclasses import replace
 from datetime import timedelta
 
-from pmtool.domain.enums import MilestoneStatus, Priority, TaskStatus
-from pmtool.domain.filters import Filter
-from pmtool.domain.models import Label, Settings, Snapshot
-from pmtool.ui import charts
-from pmtool.ui.pages.dashboard import dashboard_data, day_section, day_title, due_text
-from pmtool.ui.pages.milestones import dialog_action, milestone_rows, mta_figure
-from pmtool.ui.pages.timeline import (
+from driftline.domain.enums import MilestoneStatus, Priority, TaskStatus
+from driftline.domain.filters import Filter
+from driftline.domain.models import Label, Settings, Snapshot
+from driftline.ui import charts
+from driftline.ui.pages.dashboard import dashboard_data, day_section, day_title, due_text
+from driftline.ui.pages.milestones import dialog_action, milestone_rows, mta_figure
+from driftline.ui.pages.timeline import (
     clicked_task_id,
     period_label,
     shift,
     timeline_figure,
     window,
 )
-from pmtool.ui.pages.workload import colored_labels, workload_data, workload_filter
+from driftline.ui.pages.workload import colored_labels, workload_data, workload_filter
 from tests.factories import TODAY, D, forecast_entry, make_milestone, make_task
 from tests.helpers import T0
 
@@ -83,8 +83,8 @@ class YourDayTest(unittest.TestCase):
         self.assertEqual(due_text(D("2026-11-30"), False, D("2026-11-30"), TODAY), "due 30 Nov")
 
     def test_section_marks_capacity_cut_and_blocked(self):
-        from pmtool.calc.calendar import CalendarContext
-        from pmtool.calc.workload import day_plan
+        from driftline.calc.calendar import CalendarContext
+        from driftline.calc.workload import day_plan
 
         big = make_task(priority=Priority.CRITICAL, start=TODAY, end=TODAY, hours=6.0, at_risk=True)
         small = make_task(priority=Priority.LOW, start=TODAY, end=TODAY, hours=1.0)

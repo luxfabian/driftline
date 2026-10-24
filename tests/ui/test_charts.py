@@ -8,8 +8,8 @@ from datetime import date
 import pandas as pd
 import plotly.graph_objects as go
 
-from pmtool.domain.enums import TaskStatus
-from pmtool.ui import charts
+from driftline.domain.enums import TaskStatus
+from driftline.ui import charts
 from tests.factories import TODAY, D, make_milestone, make_task
 
 FILTER_TEXT = "Labels: work (any)"

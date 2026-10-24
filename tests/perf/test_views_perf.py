@@ -18,23 +18,23 @@ from pathlib import Path
 
 import pytest
 
-from pmtool.clock import FixedClock
-from pmtool.db.connection import connect, transaction
-from pmtool.db.migrations import apply_migrations
-from pmtool.domain.commands import MilestoneCreate, TaskCreate
-from pmtool.domain.enums import ChangeKind, EntityType, Priority
-from pmtool.domain.filters import Filter
-from pmtool.domain.models import ChangeLogEntry
-from pmtool.repo import changelog_repo, dependency_repo
-from pmtool.services import build_services
-from pmtool.services.task_service import insert_task
-from pmtool.ui import charts
-from pmtool.ui.formatting import filter_text
-from pmtool.ui.pages.dashboard import dashboard_data
-from pmtool.ui.pages.milestones import milestone_rows, mta_figure
-from pmtool.ui.pages.tasks import task_rows
-from pmtool.ui.pages.timeline import timeline_figure
-from pmtool.ui.pages.workload import workload_data
+from driftline.clock import FixedClock
+from driftline.db.connection import connect, transaction
+from driftline.db.migrations import apply_migrations
+from driftline.domain.commands import MilestoneCreate, TaskCreate
+from driftline.domain.enums import ChangeKind, EntityType, Priority
+from driftline.domain.filters import Filter
+from driftline.domain.models import ChangeLogEntry
+from driftline.repo import changelog_repo, dependency_repo
+from driftline.services import build_services
+from driftline.services.task_service import insert_task
+from driftline.ui import charts
+from driftline.ui.formatting import filter_text
+from driftline.ui.pages.dashboard import dashboard_data
+from driftline.ui.pages.milestones import milestone_rows, mta_figure
+from driftline.ui.pages.tasks import task_rows
+from driftline.ui.pages.timeline import timeline_figure
+from driftline.ui.pages.workload import workload_data
 from tests.helpers import T0
 
 pytestmark = pytest.mark.perf

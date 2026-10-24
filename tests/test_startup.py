@@ -6,18 +6,18 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from pmtool.__main__ import startup
-from pmtool.clock import FixedClock
-from pmtool.config import load_config
-from pmtool.db.backup import list_backups
-from pmtool.db.connection import connect
+from driftline.__main__ import startup
+from driftline.clock import FixedClock
+from driftline.config import load_config
+from driftline.db.backup import list_backups
+from driftline.db.connection import connect
 from tests.helpers import T0
 
 
 class StartupTest(unittest.TestCase):
     def setUp(self):
         self._tmp = tempfile.TemporaryDirectory()
-        self.config = load_config({"PMTOOL_DATA_DIR": str(Path(self._tmp.name) / "data")})
+        self.config = load_config({"DRIFTLINE_DATA_DIR": str(Path(self._tmp.name) / "data")})
         self.clock = FixedClock(T0)
 
     def tearDown(self):

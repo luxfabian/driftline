@@ -5,9 +5,9 @@ from __future__ import annotations
 import unittest
 from datetime import date
 
-from pmtool.domain.enums import ChangeKind, EntityType, TaskStatus
-from pmtool.domain.models import TASK_LOGGED_FIELDS
-from pmtool.services._base import diff_and_log
+from driftline.domain.enums import ChangeKind, EntityType, TaskStatus
+from driftline.domain.models import TASK_LOGGED_FIELDS
+from driftline.services._base import diff_and_log
 from tests.helpers import T0, memory_db
 
 BEFORE = {

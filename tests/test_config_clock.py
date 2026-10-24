@@ -5,11 +5,11 @@ from dataclasses import FrozenInstanceError
 from datetime import date, datetime
 from pathlib import Path
 
-from pmtool.clock import FixedClock, SystemClock
-from pmtool.config import DEFAULT_DATA_DIR, DEFAULT_PORT, HOST, load_config
-from pmtool.domain.enums import Priority, TaskStatus
-from pmtool.domain.models import Task
-from pmtool.errors import ConfirmationRequired, DomainError, ValidationError
+from driftline.clock import FixedClock, SystemClock
+from driftline.config import DEFAULT_DATA_DIR, DEFAULT_PORT, HOST, load_config
+from driftline.domain.enums import Priority, TaskStatus
+from driftline.domain.models import Task
+from driftline.errors import ConfirmationRequired, DomainError, ValidationError
 from tests.helpers import T0
 
 
@@ -18,23 +18,23 @@ class ConfigTest(unittest.TestCase):
         cfg = load_config({})
         self.assertEqual(cfg.data_dir, DEFAULT_DATA_DIR)
         self.assertEqual(cfg.port, DEFAULT_PORT)
-        self.assertEqual(cfg.db_path, DEFAULT_DATA_DIR / "pmtool.db")
+        self.assertEqual(cfg.db_path, DEFAULT_DATA_DIR / "driftline.db")
         self.assertEqual(cfg.backup_dir, DEFAULT_DATA_DIR / "backups")
-        self.assertEqual(cfg.log_path, DEFAULT_DATA_DIR / "pmtool.log")
+        self.assertEqual(cfg.log_path, DEFAULT_DATA_DIR / "driftline.log")
 
     def test_env_overrides(self):
-        cfg = load_config({"PMTOOL_DATA_DIR": "/tmp/x", "PMTOOL_PORT": "9000"})
+        cfg = load_config({"DRIFTLINE_DATA_DIR": "/tmp/x", "DRIFTLINE_PORT": "9000"})
         self.assertEqual(cfg.data_dir, Path("/tmp/x"))
         self.assertEqual(cfg.port, 9000)
 
     def test_host_is_always_localhost(self):  # [NFR-02]
-        self.assertEqual(load_config({"PMTOOL_HOST": "0.0.0.0"}).host, "127.0.0.1")
+        self.assertEqual(load_config({"DRIFTLINE_HOST": "0.0.0.0"}).host, "127.0.0.1")
         self.assertEqual(HOST, "127.0.0.1")
 
     def test_invalid_port(self):
         for bad in ("abc", "0", "70000"):
             with self.assertRaises(ValueError):
-                load_config({"PMTOOL_PORT": bad})
+                load_config({"DRIFTLINE_PORT": bad})
 
 
 class ClockTest(unittest.TestCase):

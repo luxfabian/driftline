@@ -7,15 +7,15 @@ import sqlite3
 import unittest
 from unittest import mock
 
-from pmtool.db import migrations
-from pmtool.db.connection import connect
-from pmtool.db.migrations import (
+from driftline.db import migrations
+from driftline.db.connection import connect
+from driftline.db.migrations import (
     apply_migrations,
     current_version,
     ensure_settings_row,
     read_schema_sql,
 )
-from pmtool.domain.enums import (
+from driftline.domain.enums import (
     ChangeKind,
     CommentKind,
     EntityType,
@@ -23,7 +23,7 @@ from pmtool.domain.enums import (
     Priority,
     TaskStatus,
 )
-from pmtool.domain.models import MILESTONE_LOGGED_FIELDS, TASK_LOGGED_FIELDS, Settings
+from driftline.domain.models import MILESTONE_LOGGED_FIELDS, TASK_LOGGED_FIELDS, Settings
 from tests.helpers import TS, insert_milestone, insert_task, memory_db
 
 EXPECTED_TABLES = {

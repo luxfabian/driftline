@@ -4,8 +4,8 @@ from __future__ import annotations
 
 import unittest
 
-from pmtool.domain.enums import Priority, TaskStatus
-from pmtool.domain.filters import Filter, apply_filter, describe
+from driftline.domain.enums import Priority, TaskStatus
+from driftline.domain.filters import Filter, apply_filter, describe
 from tests.factories import D, make_task
 from tests.helpers import T0
 

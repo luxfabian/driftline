@@ -5,17 +5,17 @@ from __future__ import annotations
 import unittest
 from datetime import timedelta
 
-from pmtool.calc import calendar as cal
-from pmtool.calc.calendar import CalendarContext
-from pmtool.calc.status import (
+from driftline.calc import calendar as cal
+from driftline.calc.calendar import CalendarContext
+from driftline.calc.status import (
     current_risk_reason,
     is_effort_overrun,
     is_open,
     is_overdue,
     is_stale,
 )
-from pmtool.domain.enums import TaskStatus
-from pmtool.domain.models import Absence, Settings
+from driftline.domain.enums import TaskStatus
+from driftline.domain.models import Absence, Settings
 from tests.factories import TODAY, D, make_task
 from tests.helpers import T0
 

@@ -10,8 +10,8 @@ import sqlite3
 from datetime import datetime
 from zoneinfo import ZoneInfo
 
-from pmtool.db.connection import connect
-from pmtool.db.migrations import apply_migrations
+from driftline.db.connection import connect
+from driftline.db.migrations import apply_migrations
 
 BERLIN = ZoneInfo("Europe/Berlin")
 T0 = datetime(2026, 10, 10, 9, 0, 0, tzinfo=BERLIN)

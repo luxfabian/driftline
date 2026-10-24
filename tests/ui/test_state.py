@@ -6,10 +6,10 @@ import json
 import unittest
 from datetime import date
 
-from pmtool.domain.enums import TaskStatus
-from pmtool.domain.filters import Filter
-from pmtool.ui import ids
-from pmtool.ui.state import filter_from_store, filter_to_store, merge_into_store, parse_date
+from driftline.domain.enums import TaskStatus
+from driftline.domain.filters import Filter
+from driftline.ui import ids
+from driftline.ui.state import filter_from_store, filter_to_store, merge_into_store, parse_date
 
 
 class FilterStoreTest(unittest.TestCase):

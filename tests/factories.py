@@ -9,8 +9,8 @@ from dataclasses import replace
 from datetime import date, timedelta
 from itertools import count
 
-from pmtool.domain.enums import ChangeKind, EntityType, MilestoneStatus, Priority, TaskStatus
-from pmtool.domain.models import ChangeLogEntry, Milestone, Task
+from driftline.domain.enums import ChangeKind, EntityType, MilestoneStatus, Priority, TaskStatus
+from driftline.domain.models import ChangeLogEntry, Milestone, Task
 from tests.helpers import T0
 
 D = date.fromisoformat

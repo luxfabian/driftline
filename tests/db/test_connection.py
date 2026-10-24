@@ -3,7 +3,7 @@ from __future__ import annotations
 import sqlite3
 import unittest
 
-from pmtool.db.connection import connect, transaction
+from driftline.db.connection import connect, transaction
 from tests.helpers import insert_task, memory_db
 
 

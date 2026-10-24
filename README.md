@@ -1,8 +1,11 @@
-# pmtool — personal project management
+# Driftline — personal project management
 
 A local, single-user tool to plan your own work, forecast workload against the time you
 actually have, and track how tasks and milestones drift from their baseline. It runs in
 your browser on your own computer; nothing leaves the machine and no internet is needed.
+
+The name: Driftline shows how your tasks and milestones drift from their baseline over
+time, and where your work lands on the timeline.
 
 Specifications: [`docs/requirements.txt`](docs/requirements.txt),
 [`docs/data_model_spec.md`](docs/data_model_spec.md),
@@ -26,10 +29,10 @@ pip install -e ".[dev]"            # or: pip install .   (without test tools)
 2. Start the tool:
 
    ```bash
-   pmtool                             # same as: python -m pmtool
+   driftline                             # same as: python -m driftline
    ```
 
-   Without activating, `.venv/bin/pmtool` (Windows: `.venv\Scripts\pmtool`) works too.
+   Without activating, `.venv/bin/driftline` (Windows: `.venv\Scripts\driftline`) works too.
 3. Open **http://127.0.0.1:8050** in your browser. The app opens on the Dashboard.
 4. Stop it with **Ctrl+C** in the terminal. Your data is saved after every change, so
    there is nothing to save before stopping.
@@ -37,53 +40,59 @@ pip install -e ".[dev]"            # or: pip install .   (without test tools)
 The terminal shows where the database is and which address to open:
 
 ```text
-INFO    pmtool: Database ready at /home/<you>/.pmtool/pmtool.db (schema version 1)
-INFO    pmtool: Open http://127.0.0.1:8050 in your browser
+INFO    driftline: Database ready at /home/<you>/.driftline/driftline.db (schema version 1)
+INFO    driftline: Open http://127.0.0.1:8050 in your browser
 ```
 
 Flask also prints a red "WARNING: This is a development server" line. That is expected:
 the tool is a single-user app that only listens on your own computer (127.0.0.1), so no
 other machine can reach it. If port 8050 is taken, use another one, e.g.
-`PMTOOL_PORT=8060 pmtool` (Windows PowerShell: `$env:PMTOOL_PORT=8060; pmtool`).
+`DRIFTLINE_PORT=8060 driftline` (Windows PowerShell: `$env:DRIFTLINE_PORT=8060; driftline`).
 
 ## Where your data is stored
 
-Everything lives in one folder, by default `.pmtool` in your home directory:
+Everything lives in one folder, by default `.driftline` in your home directory:
 
 | Operating system | Default folder |
 |---|---|
-| Linux | `/home/<you>/.pmtool/` |
-| macOS | `/Users/<you>/.pmtool/` |
-| Windows | `C:\Users\<you>\.pmtool\` |
+| Linux | `/home/<you>/.driftline/` |
+| macOS | `/Users/<you>/.driftline/` |
+| Windows | `C:\Users\<you>\.driftline\` |
 
 | File | Content |
 |---|---|
-| `pmtool.db` | **The database**: one SQLite file with all tasks, milestones, labels, comments, change history and settings. |
-| `backups/pmtool_YYYYMMDD_HHMMSS.db` | A copy of the database made at every start (not on the very first one); the newest 10 are kept, configurable in Settings. |
-| `pmtool.log` | Log file; errors shown in the app are written here with details. |
+| `driftline.db` | **The database**: one SQLite file with all tasks, milestones, labels, comments, change history and settings. |
+| `backups/driftline_YYYYMMDD_HHMMSS.db` | A copy of the database made at every start (not on the very first one); the newest 10 are kept, configurable in Settings. |
+| `driftline.log` | Log file; errors shown in the app are written here with details. |
 
 The folder and the database are created on the first start. To use another folder, set
-`PMTOOL_DATA_DIR` before starting, e.g. `PMTOOL_DATA_DIR=~/Documents/pm pmtool`
-(Windows PowerShell: `$env:PMTOOL_DATA_DIR="D:\pm"; pmtool`). Each folder is a separate,
+`DRIFTLINE_DATA_DIR` before starting, e.g. `DRIFTLINE_DATA_DIR=~/Documents/pm driftline`
+(Windows PowerShell: `$env:DRIFTLINE_DATA_DIR="D:\pm"; driftline`). Each folder is a separate,
 independent project.
 
 - **Back up or move your data:** stop the tool and copy the whole folder.
-- **Restore a backup:** stop the tool, copy the backup file over `pmtool.db`, start again.
+- **Restore a backup:** stop the tool, copy the backup file over `driftline.db`, start again.
 - **Share data with other tools:** use Settings → Export (Excel or CSV) instead of
   opening the database file directly.
+
+**Formerly pmtool.** Driftline used to be called pmtool, with its data in `~/.pmtool`.
+On the first start with the default folder, Driftline moves `~/.pmtool` to `~/.driftline`
+once and renames the files inside (`pmtool.db` → `driftline.db`, the log and the backups);
+nothing is copied or deleted, and the terminal says when it happened. If both folders
+exist, nothing is moved. The specifications in `docs/` still use the old name.
 
 ### Try it with demo data
 
 ```bash
-scripts/demo.sh                    # demo project in ~/.pmtool-demo on http://127.0.0.1:8051
+scripts/demo.sh                    # demo project in ~/.driftline-demo on http://127.0.0.1:8051
 scripts/demo.sh --keep             # restart it without resetting your changes
 ```
 
 The demo has 30 tasks, 4 milestones and 8 weeks of history (slips, re-baselines, milestone
 drift, blocked, at-risk, stale and overdue tasks), all relative to today. It uses its own
-folder `~/.pmtool-demo` and port 8051, so it can run next to your real data, which it
+folder `~/.driftline-demo` and port 8051, so it can run next to your real data, which it
 never touches. To seed another file by hand:
-`python scripts/seed_demo.py --db /path/pmtool.db [--force]`.
+`python scripts/seed_demo.py --db /path/driftline.db [--force]`.
 
 ## What's in the app
 
@@ -107,8 +116,8 @@ every chart says which filter is active. The Dashboard always shows all open wor
 Colors come from Sanzo Wada's *A Dictionary of Color Combinations*, No. 309: Golden
 Yellow, Apricot Orange, Vandar Poel's Blue and Violet Blue, on warm paper. The interface
 uses them as printed; charts use the same hues adjusted for readability and checked for
-color-vision deficiencies (`pmtool/ui/theme.py`, `pmtool/ui/assets/theme.css`). The font is
-IBM Plex Sans (SIL Open Font License, bundled in `pmtool/ui/assets/fonts/`).
+color-vision deficiencies (`driftline/ui/theme.py`, `driftline/ui/assets/theme.css`). The font is
+IBM Plex Sans (SIL Open Font License, bundled in `driftline/ui/assets/fonts/`).
 
 ### Importing tasks from CSV
 
@@ -170,7 +179,7 @@ Calculations (phase 3)
   end-date variance) and open milestones that are late.
 
 User interface (phases 4–6)
-- Writes run as JSON "actions" (`pmtool/ui/actions.py`), so an action waiting for
+- Writes run as JSON "actions" (`driftline/ui/actions.py`), so an action waiting for
   confirmation (R-05, R-11) is repeated exactly with `confirmed=True`.
 - Bulk actions (mark reviewed, archive) run one transaction per task; re-baseline is one
   batch. If a bulk action fails part-way, the tasks before the failure stay changed.
@@ -184,7 +193,7 @@ User interface (phases 4–6)
 - Chart colors follow their job: status colors for task states (blocked bars are also
   hatched), one blue ramp for priority, fixed colors per label and milestone that do not
   change with the filter. Light theme only.
-- Bootstrap's CSS is bundled in `pmtool/ui/assets/`, so the app works offline (NFR-01).
+- Bootstrap's CSS is bundled in `driftline/ui/assets/`, so the app works offline (NFR-01).
 - Export contains everything, archived items included. CSV files are UTF-8 with a byte
   order mark so Excel shows umlauts; Excel cells hold real dates and timestamps as ISO text.
 - Import creates new planned tasks from the plan columns only; status, remaining effort,
@@ -192,7 +201,7 @@ User interface (phases 4–6)
 
 Hardening (phase 7)
 - Any error a page does not handle itself becomes a message in the app ("Something went
-  wrong …") and a full traceback in `pmtool.log`, via Dash's global `on_error` handler.
+  wrong …") and a full traceback in `driftline.log`, via Dash's global `on_error` handler.
 - The tests use plain helper modules instead of the `tests/conftest.py` fixtures named in
   the architecture, so the suite also runs with `unittest`.
 
@@ -223,8 +232,8 @@ Features after phase 7
 ### Open points (`TODO(spec)` in the code)
 
 - Saving the task form writes fields and labels as two service calls
-  (`pmtool/ui/actions.py`); if the field update fails, labels are not saved either.
-- "Re-baseline all" = open items only (`pmtool/services/baseline_service.py`).
+  (`driftline/ui/actions.py`); if the field update fails, labels are not saved either.
+- "Re-baseline all" = open items only (`driftline/services/baseline_service.py`).
 - Weekly workload chart: the current week shows the capacity of the full Mon–Sun week even
   late in the week (`calc/workload.weekly_capacity`); the cumulative chart counts from today.
 

@@ -5,10 +5,10 @@ from __future__ import annotations
 import unittest
 from datetime import timedelta
 
-from pmtool.domain.enums import Priority, TaskStatus
-from pmtool.domain.filters import Filter
-from pmtool.domain.models import Label, Settings, Snapshot
-from pmtool.ui.formatting import (
+from driftline.domain.enums import Priority, TaskStatus
+from driftline.domain.filters import Filter
+from driftline.domain.models import Label, Settings, Snapshot
+from driftline.ui.formatting import (
     FLAG_AT_RISK,
     FLAG_DEPENDENCY,
     FLAG_OVERDUE,
@@ -20,7 +20,7 @@ from pmtool.ui.formatting import (
     milestone_options,
     task_options,
 )
-from pmtool.ui.pages.tasks import task_rows
+from driftline.ui.pages.tasks import task_rows
 from tests.factories import TODAY, D, make_milestone, make_task
 from tests.helpers import T0
 

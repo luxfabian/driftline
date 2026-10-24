@@ -5,8 +5,8 @@ from __future__ import annotations
 import unittest
 from datetime import timedelta
 
-from pmtool.calc.calendar import CalendarContext
-from pmtool.calc.workload import (
+from driftline.calc.calendar import CalendarContext
+from driftline.calc.workload import (
     NO_LABEL,
     cumulative_curves,
     daily_allocation,
@@ -18,8 +18,8 @@ from pmtool.calc.workload import (
     weekly_capacity,
     weekly_load,
 )
-from pmtool.domain.enums import Priority, TaskStatus
-from pmtool.domain.models import Absence, Settings
+from driftline.domain.enums import Priority, TaskStatus
+from driftline.domain.models import Absence, Settings
 from tests.factories import TODAY, D, make_task
 from tests.helpers import T0
 

@@ -7,11 +7,11 @@ import unittest
 from datetime import date
 from pathlib import Path
 
-from pmtool.clock import FixedClock
-from pmtool.db.connection import connect
-from pmtool.db.migrations import apply_migrations
-from pmtool.domain.commands import MilestoneCreate, TaskCreate
-from pmtool.services import build_services
+from driftline.clock import FixedClock
+from driftline.db.connection import connect
+from driftline.db.migrations import apply_migrations
+from driftline.domain.commands import MilestoneCreate, TaskCreate
+from driftline.services import build_services
 from tests.helpers import T0
 
 D = date.fromisoformat

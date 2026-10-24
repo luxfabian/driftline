@@ -9,12 +9,12 @@ from pathlib import Path
 
 import dash
 
-from pmtool.clock import FixedClock
-from pmtool.db.connection import connect
-from pmtool.db.migrations import apply_migrations
-from pmtool.services import build_services
-from pmtool.ui import ids
-from pmtool.ui.app import ASSETS_DIR, PAGES, create_app
+from driftline.clock import FixedClock
+from driftline.db.connection import connect
+from driftline.db.migrations import apply_migrations
+from driftline.services import build_services
+from driftline.ui import ids
+from driftline.ui.app import ASSETS_DIR, PAGES, create_app
 from tests.helpers import T0
 
 

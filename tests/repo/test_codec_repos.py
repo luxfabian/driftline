@@ -6,10 +6,10 @@ import unittest
 from datetime import date, datetime
 from zoneinfo import ZoneInfo
 
-from pmtool.domain.enums import ChangeKind, CommentKind, EntityType, Priority, TaskStatus
-from pmtool.domain.models import ChangeLogEntry
-from pmtool.repo import changelog_repo, comment_repo, label_repo, settings_repo, task_repo
-from pmtool.repo._codec import encode_log_value, format_timestamp, to_db
+from driftline.domain.enums import ChangeKind, CommentKind, EntityType, Priority, TaskStatus
+from driftline.domain.models import ChangeLogEntry
+from driftline.repo import changelog_repo, comment_repo, label_repo, settings_repo, task_repo
+from driftline.repo._codec import encode_log_value, format_timestamp, to_db
 from tests.helpers import T0, insert_task, memory_db
 
 
@@ -48,7 +48,7 @@ class RepoTest(unittest.TestCase):
         lid = label_repo.get_or_create(self.conn, "Work")
         self.assertEqual(label_repo.get_or_create(self.conn, " WORK "), lid)
         label_repo.set_task_labels(self.conn, b, [lid, lid])
-        from pmtool.repo import dependency_repo
+        from driftline.repo import dependency_repo
 
         dependency_repo.set_predecessors(self.conn, b, [a])
         t = task_repo.get(self.conn, b)

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import unittest
 
-from pmtool.calc.schedule import (
+from driftline.calc.schedule import (
     dependency_cycles,
     dependency_warnings,
     milestone_task_warnings,
@@ -13,7 +13,7 @@ from pmtool.calc.schedule import (
     task_variance,
     top_delayed,
 )
-from pmtool.domain.enums import MilestoneStatus, TaskStatus
+from driftline.domain.enums import MilestoneStatus, TaskStatus
 from tests.factories import TODAY, D, forecast_entry, make_milestone, make_task
 from tests.helpers import T0
 

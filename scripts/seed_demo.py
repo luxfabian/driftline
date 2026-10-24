@@ -1,7 +1,7 @@
 """Fill a database with demo data: ~30 tasks, 4 milestones, 8 weeks of history.
 
 Usage:
-    python scripts/seed_demo.py                 # default database (~/.pmtool/pmtool.db)
+    python scripts/seed_demo.py                 # default database (~/.driftline/driftline.db)
     python scripts/seed_demo.py --db demo.db    # another file
     python scripts/seed_demo.py --force         # replace an existing database
 
@@ -19,13 +19,13 @@ from dataclasses import dataclass, field
 from datetime import date, datetime, time, timedelta
 from pathlib import Path
 
-from pmtool.clock import FixedClock, SystemClock
-from pmtool.config import load_config
-from pmtool.db.connection import connect
-from pmtool.db.migrations import apply_migrations, ensure_settings_row
-from pmtool.domain.commands import MilestoneCreate, MilestoneUpdate, TaskCreate, TaskUpdate
-from pmtool.domain.enums import Priority, TaskStatus
-from pmtool.services import Services, build_services
+from driftline.clock import FixedClock, SystemClock
+from driftline.config import load_config
+from driftline.db.connection import connect
+from driftline.db.migrations import apply_migrations, ensure_settings_row
+from driftline.domain.commands import MilestoneCreate, MilestoneUpdate, TaskCreate, TaskUpdate
+from driftline.domain.enums import Priority, TaskStatus
+from driftline.services import Services, build_services
 
 HISTORY_DAYS = 56
 

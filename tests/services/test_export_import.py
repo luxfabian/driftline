@@ -11,12 +11,12 @@ from pathlib import Path
 
 import openpyxl
 
-from pmtool.clock import FixedClock
-from pmtool.db.connection import connect
-from pmtool.db.migrations import apply_migrations
-from pmtool.domain.enums import Priority
-from pmtool.services import build_services
-from pmtool.services.import_service import parse_csv
+from driftline.clock import FixedClock
+from driftline.db.connection import connect
+from driftline.db.migrations import apply_migrations
+from driftline.domain.enums import Priority
+from driftline.services import build_services
+from driftline.services.import_service import parse_csv
 from tests.helpers import T0
 from tests.services.base import D, ServiceTestCase
 

@@ -10,7 +10,7 @@ import ast
 import unittest
 from pathlib import Path
 
-PACKAGE = "pmtool"
+PACKAGE = "driftline"
 PACKAGE_DIR = Path(__file__).resolve().parents[2] / PACKAGE
 
 INTERNAL_LAYERS = {"db", "repo", "services", "calc", "ui", "domain", "clock", "config", "errors"}
@@ -34,7 +34,7 @@ FORBIDDEN_EXTERNAL: dict[str, set[str]] = {
 # P7: only clock.py may read the system clock
 CLOCK_CALLS = {("date", "today"), ("datetime", "now"), ("datetime", "today"),
                ("datetime", "utcnow"), ("time", "time")}  # fmt: skip
-CLOCK_ALLOWED = {"pmtool/clock.py"}
+CLOCK_ALLOWED = {"driftline/clock.py"}
 
 
 def module_name(path: Path) -> str:
@@ -124,23 +124,23 @@ class CheckerSelfTest(unittest.TestCase):
     """Proves the checker actually catches violations."""
 
     def test_detects_absolute_upward_import(self):
-        src = "from pmtool.repo import task_repo\n"
-        self.assertTrue(violations_for(src, "pmtool.calc.workload"))
+        src = "from driftline.repo import task_repo\n"
+        self.assertTrue(violations_for(src, "driftline.calc.workload"))
 
     def test_detects_relative_upward_import(self):
         src = "from ..services import task_service\n"
-        self.assertTrue(violations_for(src, "pmtool.repo.task_repo"))
+        self.assertTrue(violations_for(src, "driftline.repo.task_repo"))
 
     def test_detects_dash_in_calc(self):
-        self.assertTrue(violations_for("import plotly.graph_objects as go\n", "pmtool.calc.x"))
+        self.assertTrue(violations_for("import plotly.graph_objects as go\n", "driftline.calc.x"))
 
     def test_allows_calc_to_use_domain(self):
-        src = "from pmtool.domain.models import Task\nimport pandas as pd\n"
-        self.assertEqual(violations_for(src, "pmtool.calc.workload"), [])
+        src = "from driftline.domain.models import Task\nimport pandas as pd\n"
+        self.assertEqual(violations_for(src, "driftline.calc.workload"), [])
 
     def test_allows_ui_anything(self):
-        src = "from pmtool.services import x\nfrom pmtool.calc import y\nimport dash\n"
-        self.assertEqual(violations_for(src, "pmtool.ui.app"), [])
+        src = "from driftline.services import x\nfrom driftline.calc import y\nimport dash\n"
+        self.assertEqual(violations_for(src, "driftline.ui.app"), [])
 
     def test_detects_clock_call(self):
         self.assertTrue(clock_calls("from datetime import date\nx = date.today()\n"))

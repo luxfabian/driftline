@@ -5,9 +5,9 @@ from __future__ import annotations
 import unittest
 from datetime import datetime
 
-from pmtool.domain.models import Settings
-from pmtool.services.import_service import ImportResult, RowError
-from pmtool.ui.pages.settings import (
+from driftline.domain.models import Settings
+from driftline.services.import_service import ImportResult, RowError
+from driftline.ui.pages.settings import (
     capacity_note,
     export_name,
     form_values,
@@ -42,7 +42,7 @@ class SettingsPageTest(unittest.TestCase):
 
     def test_export_name(self):
         self.assertEqual(
-            export_name(datetime(2026, 10, 24, 9, 5), "xlsx"), "pmtool_export_20261024_0905.xlsx"
+            export_name(datetime(2026, 10, 24, 9, 5), "xlsx"), "driftline_export_20261024_0905.xlsx"
         )
 
     def test_row_actions(self):

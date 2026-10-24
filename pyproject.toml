@@ -3,7 +3,7 @@ requires = ["setuptools>=69", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "pmtool"
+name = "driftline"
 version = "0.1.0"
 description = "Personal project management tool: workload forecast and schedule tracking"
 requires-python = ">=3.11"
@@ -22,14 +22,14 @@ dependencies = [
 dev = ["pytest==9.1.1", "ruff==0.17.1"]
 
 [project.scripts]
-pmtool = "pmtool.__main__:main"
+driftline = "driftline.__main__:main"
 
 [tool.setuptools.packages.find]
-include = ["pmtool*"]
+include = ["driftline*"]
 
 [tool.setuptools.package-data]
-"pmtool.db" = ["schema.sql"]
-"pmtool.ui" = ["assets/*", "assets/fonts/*"]
+"driftline.db" = ["schema.sql"]
+"driftline.ui" = ["assets/*", "assets/fonts/*"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

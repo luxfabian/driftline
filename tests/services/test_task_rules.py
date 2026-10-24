@@ -4,9 +4,9 @@ from __future__ import annotations
 
 import unittest
 
-from pmtool.domain.commands import UNLINK, TaskUpdate
-from pmtool.domain.enums import Priority, TaskStatus
-from pmtool.errors import ConfirmationRequired, NotFound, ValidationError
+from driftline.domain.commands import UNLINK, TaskUpdate
+from driftline.domain.enums import Priority, TaskStatus
+from driftline.errors import ConfirmationRequired, NotFound, ValidationError
 from tests.helpers import TS
 from tests.services.base import D, ServiceTestCase
 

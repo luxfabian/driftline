@@ -4,9 +4,9 @@ from __future__ import annotations
 
 import unittest
 
-from pmtool.domain.commands import MilestoneUpdate
-from pmtool.domain.models import Settings
-from pmtool.errors import NotFound, ValidationError
+from driftline.domain.commands import MilestoneUpdate
+from driftline.domain.models import Settings
+from driftline.errors import NotFound, ValidationError
 from tests.services.base import D, ServiceTestCase
 
 
