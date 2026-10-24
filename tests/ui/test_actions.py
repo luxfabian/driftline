@@ -235,5 +235,63 @@ class MilestoneActionsTest(ServiceTestCase):
         self.assertFalse(self.svc.milestones.get(b).is_archived)
 
 
+class SettingsActionsTest(ServiceTestCase):
+    def test_update_settings(self):
+        ok = execute(
+            self.svc,
+            {
+                "kind": "update_settings",
+                "values": {"weekly_hours": 32, "working_weekdays": [1, 2, 3, 4]},
+            },
+        )
+        self.assertTrue(ok.ok, ok.message)
+        self.assertEqual(self.svc.settings.get().working_weekdays, (1, 2, 3, 4))
+        bad = execute(
+            self.svc,
+            {"kind": "update_settings", "values": {"load_green_max": 1.2, "load_amber_max": 1.0}},
+        )
+        self.assertEqual(bad.status, "error")
+
+    def test_absences_and_holidays(self):
+        added = execute(
+            self.svc,
+            {
+                "kind": "add_absence",
+                "start_date": "2026-12-21",
+                "end_date": "2026-12-31",
+                "note": "Vacation",
+            },
+        )
+        self.assertTrue(added.ok)
+        reversed_dates = execute(
+            self.svc, {"kind": "add_absence", "start_date": "2026-12-21", "end_date": "2026-12-01"}
+        )
+        self.assertEqual(reversed_dates.status, "error")
+        execute(self.svc, {"kind": "remove_absence", "absence_id": added.result})
+        self.assertEqual(self.svc.settings.list_absences(), [])
+        self.assertTrue(
+            execute(self.svc, {"kind": "add_holiday", "date": "2026-12-25", "name": "Christmas"}).ok
+        )
+        self.assertEqual(
+            execute(self.svc, {"kind": "add_holiday", "date": "2026-12-25"}).status, "error"
+        )  # duplicate
+        self.assertTrue(execute(self.svc, {"kind": "remove_holiday", "date": "2026-12-25"}).ok)
+
+    def test_R_11_delete_asks_and_needs_archive(self):
+        task_id = self.make_task()
+        active = execute(self.svc, {"kind": "delete_task", "task_id": task_id})
+        self.assertEqual(active.status, "error")  # archive first
+        self.svc.tasks.archive(task_id)
+        ask = execute(self.svc, {"kind": "delete_task", "task_id": task_id})
+        self.assertEqual(ask.status, "confirm")
+        self.assertTrue(execute(self.svc, ask.action, confirmed=True).ok)
+        self.assertEqual(self.query("SELECT count(*) AS n FROM task")[0]["n"], 0)
+        ms = self.make_milestone()
+        self.svc.milestones.archive(ms)
+        ask = execute(self.svc, {"kind": "delete_milestone", "milestone_id": ms})
+        self.assertEqual(ask.status, "confirm")
+        self.assertTrue(execute(self.svc, ask.action, confirmed=True).ok)
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -206,6 +206,46 @@ def _restore_milestones(services: Services, a: Action, confirmed: bool) -> tuple
     return f"{_milestones(ids)} restored.", None
 
 
+def _update_settings(services: Services, a: Action, confirmed: bool) -> tuple[str, None]:
+    services.settings.update(**dict(a.get("values") or {}))
+    return "Settings saved.", None
+
+
+def _add_absence(services: Services, a: Action, confirmed: bool) -> tuple[str, int]:
+    absence_id = services.settings.add_absence(
+        parse_date(a.get("start_date")), parse_date(a.get("end_date")), a.get("note")
+    )
+    return "Absence added.", absence_id
+
+
+def _remove_absence(services: Services, a: Action, confirmed: bool) -> tuple[str, None]:
+    services.settings.remove_absence(int(a["absence_id"]))
+    return "Absence removed.", None
+
+
+def _add_holiday(services: Services, a: Action, confirmed: bool) -> tuple[str, None]:
+    services.settings.add_holiday(parse_date(a.get("date")), a.get("name"))
+    return "Holiday added.", None
+
+
+def _remove_holiday(services: Services, a: Action, confirmed: bool) -> tuple[str, None]:
+    day = _required_date(a.get("date"), "Holiday date is required.")
+    services.settings.remove_holiday(day)
+    return "Holiday removed.", None
+
+
+def _delete_task(services: Services, a: Action, confirmed: bool) -> tuple[str, None]:
+    task_id = int(a["task_id"])
+    services.tasks.delete_permanently(task_id, confirmed=confirmed)  # R-11 asks first
+    return f"Task {task_id} deleted permanently.", None
+
+
+def _delete_milestone(services: Services, a: Action, confirmed: bool) -> tuple[str, None]:
+    milestone_id = int(a["milestone_id"])
+    services.milestones.delete_permanently(milestone_id, confirmed=confirmed)  # R-11
+    return f"Milestone {milestone_id} deleted permanently.", None
+
+
 _HANDLERS: dict[str, Callable[[Services, Action, bool], tuple[str, Any]]] = {
     "create_task": _create_task,
     "save_task": _save_task,
@@ -223,6 +263,13 @@ _HANDLERS: dict[str, Callable[[Services, Action, bool], tuple[str, Any]]] = {
     "rebaseline_milestones": _rebaseline_milestones,
     "archive_milestones": _archive_milestones,
     "restore_milestones": _restore_milestones,
+    "update_settings": _update_settings,
+    "add_absence": _add_absence,
+    "remove_absence": _remove_absence,
+    "add_holiday": _add_holiday,
+    "remove_holiday": _remove_holiday,
+    "delete_task": _delete_task,
+    "delete_milestone": _delete_milestone,
 }
 
 

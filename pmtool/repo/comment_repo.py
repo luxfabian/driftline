@@ -25,16 +25,22 @@ def list_for_task(conn: sqlite3.Connection, task_id: int) -> list[Comment]:
     rows = conn.execute(
         "SELECT * FROM comment WHERE task_id = ? ORDER BY created_at DESC, id DESC", (task_id,)
     )
-    return [
-        Comment(
-            id=r["id"],
-            task_id=r["task_id"],
-            kind=CommentKind(r["kind"]),
-            text=r["text"],
-            created_at=parse_timestamp(r["created_at"]),
-        )
-        for r in rows
-    ]
+    return [_to_comment(r) for r in rows]
+
+
+def list_all(conn: sqlite3.Connection) -> list[Comment]:
+    """Every comment, by task then time (for export)."""
+    return [_to_comment(r) for r in conn.execute("SELECT * FROM comment ORDER BY task_id, id")]
+
+
+def _to_comment(row: sqlite3.Row) -> Comment:
+    return Comment(
+        id=row["id"],
+        task_id=row["task_id"],
+        kind=CommentKind(row["kind"]),
+        text=row["text"],
+        created_at=parse_timestamp(row["created_at"]),
+    )
 
 
 def latest_risk_reasons(conn: sqlite3.Connection) -> dict[int, str]:

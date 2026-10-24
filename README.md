@@ -12,11 +12,8 @@ Specifications: `docs/requirements.txt`, `docs/data_model_spec.md`, `docs/archit
 | 3 Calculations | calendar, status, schedule, workload, filters | done |
 | 4 UI shell + Tasks | app shell, filter panel, Tasks grid with bulk actions, task form, task detail, confirm dialog, demo seed script | done |
 | 5 Views | Dashboard, Timeline (Gantt), Milestones (table, actions, trend analysis), Workload; pure chart builders | done |
-| 6 Settings + I/O | Settings page, export, import, archive management | next |
-| 7 | hardening | open |
-
-Export and import services exist as placeholders and arrive in phase 6, as does the
-Settings page.
+| 6 Settings + I/O | Settings page (capacity, thresholds, absences, holidays), Excel/CSV export, CSV import, archive management | done |
+| 7 Hardening | perf test, error toasts for every DomainError path, README | next |
 
 ## Interpretations made in phase 2 (marked `TODO(spec)` where open)
 
@@ -70,6 +67,20 @@ Settings page.
   today is late in that week (phase 3 `weekly_capacity`); the cumulative chart counts
   capacity from today only. `TODO(spec)`: decide whether the first week should be prorated.
 - Charts use a light theme only (the app has no dark mode).
+
+## Interpretations made in phase 6
+
+- Export contains all tasks, milestones, comments and change history, archived items
+  included. CSV files are UTF-8 with a byte order mark so Excel shows umlauts; Excel
+  cells hold real dates, timestamps are ISO text (Excel has no time zones).
+- Import creates new planned tasks from the plan columns only (title, dates, estimate,
+  priority, labels, description). Status, remaining effort, milestone and dependencies of
+  an exported file are ignored, so "export -> fresh DB -> import" restores the plan, not
+  the history. Rows are not checked for duplicates of existing tasks.
+- Import also accepts priority names (Critical/High/Medium/Low) and a decimal comma in
+  the effort ("1,5" in quotes). Header names are case-insensitive; other columns are ignored.
+- Saving settings and adding absences/holidays reload the page's lists, which also resets
+  unsaved edits in the settings form.
 
 ## Backlog (UI iteration after phase 7)
 

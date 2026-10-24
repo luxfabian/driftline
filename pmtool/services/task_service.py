@@ -41,47 +41,9 @@ class TaskService(ServiceBase):
 
     def create(self, cmd: TaskCreate) -> int:
         """R-01 (+ R-12 labels, R-13 predecessors)."""
-        title = require_text(cmd.title, "DAT-01", "Title")
-        _check_dates(cmd.forecast_start, cmd.forecast_end)
-        estimated = require_effort(cmd.estimated_effort_h, "Estimated effort")
-        priority = _priority(cmd.priority)
-        label_names = _clean_label_names(cmd.label_names)
-        predecessor_ids = sorted(set(cmd.predecessor_ids))
-
         now = self.clock.now()
         with self._write() as conn:
-            if cmd.milestone_id is not None:
-                _require_milestone(conn, cmd.milestone_id)
-            _require_tasks_exist(conn, predecessor_ids)
-
-            values: dict[str, Any] = {
-                "title": title,
-                "description": clean_text(cmd.description),
-                "baseline_start": cmd.forecast_start,  # SCH-01
-                "baseline_end": cmd.forecast_end,
-                "forecast_start": cmd.forecast_start,
-                "forecast_end": cmd.forecast_end,
-                "estimated_effort_h": estimated,
-                "remaining_effort_h": estimated,
-                "status": TaskStatus.PLANNED,
-                "priority": priority,
-                "at_risk": False,
-                "milestone_id": cmd.milestone_id,
-                "last_review_at": now,
-                "created_at": now,
-                "updated_at": now,
-            }
-            task_id = task_repo.insert(conn, values)
-            diff_and_log(
-                conn, EntityType.TASK, task_id, {}, values, TASK_LOGGED_FIELDS,
-                ChangeKind.CREATE, None, new_batch_id(), now,
-            )  # fmt: skip
-            if label_names:
-                ids = [label_repo.get_or_create(conn, n) for n in label_names]
-                label_repo.set_task_labels(conn, task_id, ids)
-            if predecessor_ids:
-                dependency_repo.set_predecessors(conn, task_id, predecessor_ids)
-        return task_id
+            return insert_task(conn, cmd, now)
 
     def update(self, cmd: TaskUpdate, confirmed: bool = False) -> None:
         """R-03, R-04, R-05, R-06 (blocked), R-07, R-14; VAL-01..VAL-03, VAL-06."""
@@ -273,7 +235,53 @@ class TaskService(ServiceBase):
             )
 
 
-# --- module helpers ------------------------------------------------------------
+# --- module helpers ------------------------------------------------------------------
+
+
+def insert_task(conn: sqlite3.Connection, cmd: TaskCreate, now) -> int:
+    """Validate and insert one task inside the caller's transaction (R-01, R-12, R-13).
+
+    Shared by ``TaskService.create`` and the CSV import, which inserts many
+    tasks in one transaction (all-or-nothing, NFR-08).
+    """
+    title = require_text(cmd.title, "DAT-01", "Title")
+    _check_dates(cmd.forecast_start, cmd.forecast_end)
+    estimated = require_effort(cmd.estimated_effort_h, "Estimated effort")
+    priority = _priority(cmd.priority)
+    label_names = _clean_label_names(cmd.label_names)
+    predecessor_ids = sorted(set(cmd.predecessor_ids))
+    if cmd.milestone_id is not None:
+        _require_milestone(conn, cmd.milestone_id)
+    _require_tasks_exist(conn, predecessor_ids)
+
+    values: dict[str, Any] = {
+        "title": title,
+        "description": clean_text(cmd.description),
+        "baseline_start": cmd.forecast_start,  # SCH-01
+        "baseline_end": cmd.forecast_end,
+        "forecast_start": cmd.forecast_start,
+        "forecast_end": cmd.forecast_end,
+        "estimated_effort_h": estimated,
+        "remaining_effort_h": estimated,
+        "status": TaskStatus.PLANNED,
+        "priority": priority,
+        "at_risk": False,
+        "milestone_id": cmd.milestone_id,
+        "last_review_at": now,
+        "created_at": now,
+        "updated_at": now,
+    }
+    task_id = task_repo.insert(conn, values)
+    diff_and_log(
+        conn, EntityType.TASK, task_id, {}, values, TASK_LOGGED_FIELDS,
+        ChangeKind.CREATE, None, new_batch_id(), now,
+    )  # fmt: skip
+    if label_names:
+        ids = [label_repo.get_or_create(conn, n) for n in label_names]
+        label_repo.set_task_labels(conn, task_id, ids)
+    if predecessor_ids:
+        dependency_repo.set_predecessors(conn, task_id, predecessor_ids)
+    return task_id
 
 
 def _get_any(conn: sqlite3.Connection, task_id: int) -> Task:

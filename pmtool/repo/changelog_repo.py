@@ -52,6 +52,11 @@ def list_field(conn: sqlite3.Connection, entity_type: str, field: str) -> list[C
     return [_to_entry(r) for r in rows]
 
 
+def list_all(conn: sqlite3.Connection) -> list[ChangeLogEntry]:
+    """Every entry in insertion order (for export)."""
+    return [_to_entry(r) for r in conn.execute("SELECT * FROM change_log ORDER BY id")]
+
+
 def delete_for_entity(conn: sqlite3.Connection, entity_type: str, entity_id: int) -> None:
     conn.execute(
         "DELETE FROM change_log WHERE entity_type = ? AND entity_id = ?",
