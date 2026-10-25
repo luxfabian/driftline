@@ -98,12 +98,12 @@ never touches. To seed another file by hand:
 
 | Page | What you do there |
 |---|---|
-| **Dashboard** | Load ratio for the next weeks (OK / Tight / Overloaded), counts of overdue, at-risk, blocked and stale tasks. **Your day**: the work the plan puts on today (or the next working day), split by priority against the plannable hours, in focus order with a line where the day's capacity runs out; blocked work listed apart. Then milestone and dependency warnings and the most delayed items. Click a task to open it. |
+| **Dashboard** | Load ratio for the next weeks (OK / Tight / Overloaded), counts of overdue, at-risk, blocked and stale tasks. **Your day**: the work the plan puts on today (or the next working day), split by priority against the plannable hours, in focus order with a line where the day's capacity runs out; blocked work listed apart. Below it the most delayed items, and at the bottom milestone and dependency warnings. Click a task to open it. |
 | **Tasks** | Filter bar on top; sortable, filterable table. Click a row for details: edit, labels, milestone, at-risk flag, dependencies, comments and full change history. Select rows to mark them reviewed, re-baseline or archive them. "+ New task" is in the top bar. |
 | **Timeline** | Gantt chart: forecast bars by status inside baseline outlines, milestones as diamonds, today line, and arrows from each task to the tasks that depend on it (red when the successor starts too early). Switches turn milestones and dependencies on or off. Show a week, a month, a year or all dates, and step with ‹ › (Today jumps back). Click a bar to open the task. |
 | **Milestones** | Create, edit (with a reason), mark achieved, reopen, re-baseline, archive. The trend chart shows how each forecast moved over time. |
-| **Workload** | Whether the work fits (cumulative demand as bars, the shortfall above capacity in apricot) and where the peaks are (stacked weekly load by priority or label against capacity), for 1–12 weeks. |
-| **Settings** | Working hours and days, plannable share, thresholds, absences, public holidays; export to Excel or CSV; import tasks from CSV; restore or permanently delete archived items. |
+| **Workload** | Whether the work fits (cumulative demand as bars, the shortfall above capacity in the theme's warm colour) and where the peaks are (stacked weekly load by priority or label against capacity), for 1–12 weeks. |
+| **Settings** | Colour theme, working hours and days, plannable share, thresholds, absences, public holidays; export to Excel or CSV; import tasks from CSV; restore or permanently delete archived items. |
 
 The **filter bar** sits on the pages that show tasks: Tasks and Timeline (labels,
 milestones, priority, status; "More filters" for label matching, dates, at-risk only and
@@ -113,11 +113,24 @@ every chart says which filter is active. The Dashboard always shows all open wor
 
 ### Design
 
-Colors come from Sanzo Wada's *A Dictionary of Color Combinations*, No. 309: Golden
-Yellow, Apricot Orange, Vandar Poel's Blue and Violet Blue, on warm paper. The interface
-uses them as printed; charts use the same hues adjusted for readability and checked for
-color-vision deficiencies (`driftline/ui/theme.py`, `driftline/ui/assets/theme.css`). The font is
-IBM Plex Sans (SIL Open Font License, bundled in `driftline/ui/assets/fonts/`).
+Colors come from Sanzo Wada's *A Dictionary of Color Combinations*, on warm paper. Five
+combinations are built in; pick one under Settings → Colour theme (stored in the database):
+
+| Theme | Combination |
+|---|---|
+| Harbour (default) | No. 309: Golden Yellow, Apricot Orange, Violet Blue, Vandar Poel's Blue |
+| Forest | No. 278: Cream Yellow, Olive Ocher, Cossack Green, Dusky Green |
+| Plum | No. 134: Eosine Pink, Light Mauve, Red Violet |
+| Walnut | No. 328: Brick Red, Apricot Orange, Vandyke Brown, Light Porcelain Green |
+| Slate | No. 253: Lemon Yellow, Apricot Orange, Cotinga Purple, Slate Color |
+
+The interface uses each combination as printed (a colour too light for white text is
+darkened until it reaches 4.5:1). Charts use its hues adjusted for readability, filled up
+with other colours from the dictionary, and checked for color-vision deficiencies. Paper,
+ink and the status colours (warning, overdue) are the same in every theme. Themes are
+defined in `driftline/ui/theme.py`; `driftline/ui/assets/themes.css` is generated from it
+with `python -m driftline.ui.theme` (a test fails when it is out of date). The font is IBM
+Plex Sans (SIL Open Font License, bundled in `driftline/ui/assets/fonts/`).
 
 ### Importing tasks from CSV
 
@@ -191,8 +204,10 @@ User interface (phases 4–6)
 - Milestone and dependency warnings are checked against all active tasks, so a
   predecessor outside a filter can still be reported as late.
 - Chart colors follow their job: status colors for task states (blocked bars are also
-  hatched), one blue ramp for priority, fixed colors per label and milestone that do not
-  change with the filter. Light theme only.
+  hatched), one ramp in the theme's main hue for priority, fixed colors per label and
+  milestone that do not change with the filter. Light themes only.
+- The colour theme is a setting (`app_settings.theme`, schema version 2, added by the
+  first migration). It is not in the specification; old databases get the default theme.
 - Bootstrap's CSS is bundled in `driftline/ui/assets/`, so the app works offline (NFR-01).
 - Export contains everything, archived items included. CSV files are UTF-8 with a byte
   order mark so Excel shows umlauts; Excel cells hold real dates and timestamps as ISO text.

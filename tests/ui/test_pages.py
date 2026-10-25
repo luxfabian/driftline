@@ -152,7 +152,7 @@ class WorkloadDataTest(unittest.TestCase):
 
     def test_priority_colors(self):
         data = workload_data(snapshot([make_task()]), Filter(), TODAY, 2, "priority")
-        self.assertEqual(data.colors, charts.PRIORITY_COLORS)
+        self.assertEqual(data.colors, charts.priority_colors())
         self.assertEqual(set(data.weekly["group"]), {"Medium"})
 
 

@@ -3,12 +3,13 @@
 No data loading or calculation happens here. Every builder puts the active
 filter text in the chart subtitle [FUN-10].
 
-Colors (``ui/theme.py``, Wada No. 309) follow the job they do: task status is
-a state -> quiet tints for planned/done, Vandar Poel's Blue for work in
-progress, Apricot for blocked (also hatched), Brick Red reserved for overdue;
-priority is ordered -> one blue ramp, darkest = Critical; labels and
-milestones are identities -> categorical slots in fixed order, keyed by the
-entity so a filter never repaints the others.
+Colors (``ui/theme.py``, the active Wada theme) follow the job they do: task
+status is a state -> quiet tints for planned/done, the first categorical slot
+for work in progress, the theme's warm colour for blocked (also hatched),
+Brick Red reserved for overdue; priority is ordered -> one ramp in the theme's
+primary hue, darkest = Critical; labels and milestones are identities ->
+categorical slots in fixed order, keyed by the entity so a filter never
+repaints the others.
 """
 
 from __future__ import annotations
@@ -34,23 +35,32 @@ GRID = theme.HAIRLINE
 AXIS = theme.AXIS
 FONT = theme.FONT_FAMILY
 
-CATEGORICAL = theme.CATEGORICAL
 OTHER = "Other"
 OTHER_COLOR = "#a9a6b3"
+DONE_COLOR = "#b9b6c4"
 
 STATUS_GOOD, STATUS_WARNING, STATUS_CRITICAL = theme.GOOD, theme.WARNING, theme.CRITICAL
-TASK_STATUS_COLORS = {
-    TaskStatus.PLANNED: "#8cb8d2",
-    TaskStatus.IN_PROGRESS: "#006692",
-    TaskStatus.BLOCKED: "#de6e28",
-    TaskStatus.DONE: "#b9b6c4",
-}
-PRIORITY_COLORS = dict(zip([p.label for p in Priority], theme.PRIORITY_RAMP, strict=True))
-TODAY_COLOR = theme.APRICOT_ORANGE
-DEMAND_COLOR = "#006692"
-SHORTFALL_COLOR = "#de6e28"
-CAPACITY_COLOR = theme.VIOLET_BLUE
-LINK_COLOR = theme.VIOLET_BLUE
+
+
+# Theme colours are looked up while a figure is built, so a theme change applies
+# to the next render without re-importing anything.
+def categorical() -> tuple[str, ...]:
+    return theme.active().categorical
+
+
+def task_status_colors() -> dict[TaskStatus, str]:
+    p = theme.active()
+    return {
+        TaskStatus.PLANNED: p.planned,
+        TaskStatus.IN_PROGRESS: p.in_progress,
+        TaskStatus.BLOCKED: p.blocked,
+        TaskStatus.DONE: DONE_COLOR,
+    }
+
+
+def priority_colors() -> dict[str, str]:
+    return dict(zip([p.label for p in Priority], theme.active().priority_ramp, strict=True))
+
 
 DAY_MS = 24 * 60 * 60 * 1000
 ROW_PX = 30
@@ -64,7 +74,8 @@ def categorical_colors(keys: Iterable) -> dict:
     slot and the rest share the "Other" gray (never a generated extra hue).
     """
     ordered = list(dict.fromkeys(keys))
-    slots = CATEGORICAL if len(ordered) <= len(CATEGORICAL) else CATEGORICAL[:-1]
+    palette = categorical()
+    slots = palette if len(ordered) <= len(palette) else palette[:-1]
     return {k: (slots[i] if i < len(slots) else OTHER_COLOR) for i, k in enumerate(ordered)}
 
 
@@ -127,7 +138,7 @@ def _today_line(fig: go.Figure, today: date, label_at: str = "top") -> None:
         y0=0,
         y1=1,
         yref="paper",
-        line={"color": TODAY_COLOR, "width": 1.5},
+        line={"color": theme.active().today, "width": 1.5},
         layer="below",
     )
     fig.add_annotation(  # inside the plot, so it never collides with the legend
@@ -211,6 +222,7 @@ def build_gantt(
                 hoverinfo="skip",
             )
         )
+    status_colors = task_status_colors()
     for status in TaskStatus:
         group = [t for t in ordered if t.status is status]
         if not group:
@@ -224,7 +236,7 @@ def build_gantt(
                 x=[_span_ms(t.forecast_start, t.forecast_end) for t in group],
                 width=0.42,
                 marker={
-                    "color": TASK_STATUS_COLORS[status],
+                    "color": status_colors[status],
                     "line": {
                         "color": [STATUS_CRITICAL if t.id in overdue else SURFACE for t in group],
                         "width": [2.5 if t.id in overdue else 0 for t in group],
@@ -304,7 +316,7 @@ def build_gantt(
                 marker={
                     "symbol": "diamond",
                     "size": 13,
-                    "color": theme.VIOLET_BLUE,
+                    "color": theme.active().secondary,
                     "line": {"color": SURFACE, "width": 2},
                 },
                 customdata=[
@@ -368,7 +380,7 @@ def _add_dependencies(
     for late, links in groups.items():
         if not links:
             continue
-        color = STATUS_CRITICAL if late else LINK_COLOR
+        color = STATUS_CRITICAL if late else theme.active().secondary
         xs: list = []
         ys: list = []
         ends_x, ends_y, symbols, hover = [], [], [], []
@@ -504,10 +516,10 @@ def build_mta(
 
 
 def build_cumulative(curves: pd.DataFrame, filter_text: str) -> go.Figure:
-    """Cumulative demand per day as bars; the part above capacity is shown in apricot.
+    """Cumulative demand per day as bars; the part above capacity in the warm colour.
 
     Bars soften the stepwise look of a cumulative line; the capacity is a
-    smooth line on top, so the shortfall reads as the apricot cap of each bar.
+    smooth line on top, so the shortfall reads as the warm cap of each bar.
     """
     title = "Cumulative demand vs. plannable capacity"
     if curves.empty:
@@ -526,7 +538,7 @@ def build_cumulative(curves: pd.DataFrame, filter_text: str) -> go.Figure:
             x=x,
             y=covered,
             customdata=custom,
-            marker={"color": _rgba(DEMAND_COLOR, 0.85), "cornerradius": 2},
+            marker={"color": _rgba(theme.active().in_progress, 0.85), "cornerradius": 2},
             hovertemplate=hover,
         )
     )
@@ -536,7 +548,7 @@ def build_cumulative(curves: pd.DataFrame, filter_text: str) -> go.Figure:
             x=x,
             y=curves["shortfall_h"],
             customdata=custom,
-            marker={"color": SHORTFALL_COLOR, "cornerradius": 2},
+            marker={"color": theme.active().blocked, "cornerradius": 2},
             hovertemplate=hover,
         )
     )
@@ -546,7 +558,12 @@ def build_cumulative(curves: pd.DataFrame, filter_text: str) -> go.Figure:
             x=x,
             y=curves["capacity_h"],
             mode="lines",
-            line={"color": CAPACITY_COLOR, "width": 2, "shape": "spline", "smoothing": 0.6},
+            line={
+                "color": theme.active().secondary,
+                "width": 2,
+                "shape": "spline",
+                "smoothing": 0.6,
+            },
             hoverinfo="skip",
         )
     )
@@ -589,7 +606,7 @@ def build_weekly_load(
         return empty_figure(title, subtitle, "No weeks in the horizon.")
     if colors is None:
         colors = (
-            PRIORITY_COLORS
+            priority_colors()
             if group_label.lower() == "priority"
             else categorical_colors(weekly["group"].unique() if len(weekly) else [])
         )
@@ -618,8 +635,8 @@ def build_weekly_load(
             x=weeks,
             y=capacity["capacity_h"],
             mode="lines+markers",
-            line={"color": CAPACITY_COLOR, "width": 2},
-            marker={"size": 6, "color": CAPACITY_COLOR},
+            line={"color": theme.active().secondary, "width": 2},
+            marker={"size": 6, "color": theme.active().secondary},
             hovertemplate="Capacity %{y:.1f} h<extra></extra>",
         )
     )

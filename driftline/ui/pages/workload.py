@@ -80,7 +80,7 @@ def workload_data(
         weekly = charts.fold_groups(weekly, {*colors, NO_LABEL})
         colors |= {NO_LABEL: NO_LABEL_COLOR, charts.OTHER: charts.OTHER_COLOR}
     else:
-        colors = dict(charts.PRIORITY_COLORS)
+        colors = charts.priority_colors()
     ratio = load_ratio(tasks, today, horizon_weeks, ctx)
     return WorkloadData(
         curves=cumulative_curves(tasks, today, end, ctx),
@@ -100,14 +100,14 @@ def colored_labels(snap: Snapshot) -> list[str]:
     never repaints the chart.
     """
     names = {lb.id: lb.name for lb in snap.labels}
-    if len(names) <= len(charts.CATEGORICAL):
+    if len(names) <= len(charts.categorical()):
         return sorted(names.values(), key=str.lower)
     hours: dict[str, float] = dict.fromkeys(names.values(), 0.0)
     for t in snap.tasks:
         if is_open(t):
             for i in t.label_ids:
                 hours[names[i]] += t.remaining_effort_h
-    biggest = sorted(hours, key=lambda n: (-hours[n], n.lower()))[: len(charts.CATEGORICAL) - 1]
+    biggest = sorted(hours, key=lambda n: (-hours[n], n.lower()))[: len(charts.categorical()) - 1]
     return sorted(biggest, key=str.lower)
 
 
@@ -156,7 +156,7 @@ def layout(**_kwargs) -> html.Div:
                      className="pm-panel"),
             html.P(
                 "Cumulative demand: whether the work fits by its due dates (overdue work "
-                "counts as due today); the apricot part of a bar is the shortfall. Weekly "
+                "counts as due today); the upper, warm part of a bar is the shortfall. Weekly "
                 "load: remaining effort spread over the working days from each task's start, "
                 "so it shows where the peaks are.",
                 className="pm-hint",

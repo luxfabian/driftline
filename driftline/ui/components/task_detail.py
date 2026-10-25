@@ -18,7 +18,7 @@ from driftline.domain.models import ChangeLogEntry, Comment, Task, TaskDetail
 from driftline.errors import NotFound
 from driftline.services import Services
 from driftline.ui import ids, theme
-from driftline.ui.charts import TASK_STATUS_COLORS
+from driftline.ui.charts import task_status_colors
 from driftline.ui.components.task_form import form_fields, register_label_options
 from driftline.ui.feedback import NO_FEEDBACK, run, write_outputs
 from driftline.ui.formatting import (
@@ -38,15 +38,19 @@ from driftline.ui.formatting import (
 FORM = ids.EDIT_FORM
 LIGHT_STATUSES = {TaskStatus.PLANNED, TaskStatus.DONE}  # pale fills need dark text
 
-STATUS_COLORS = TASK_STATUS_COLORS  # same colors as the timeline bars
-FLAG_COLORS = {
-    FLAG_ARCHIVED: theme.INK_2,
-    FLAG_AT_RISK: theme.GOLDEN_YELLOW,
-    FLAG_OVERDUE: theme.BRICK_RED,
-    FLAG_DEPENDENCY: theme.APRICOT_ORANGE,
-    FLAG_STALE: theme.MUTED,
-    FLAG_OVERRUN: theme.VIOLET_BLUE,
-}
+
+def flag_colors() -> dict[str, str]:
+    p = theme.active()
+    return {
+        FLAG_ARCHIVED: theme.INK_2,
+        FLAG_AT_RISK: theme.WARNING,
+        FLAG_OVERDUE: theme.CRITICAL,
+        FLAG_DEPENDENCY: p.blocked,
+        FLAG_STALE: theme.MUTED,
+        FLAG_OVERRUN: p.secondary,
+    }
+
+
 COMMENT_KINDS = {
     CommentKind.NOTE: "Note",
     CommentKind.RISK_SET: "At risk",
@@ -177,7 +181,7 @@ def badges(task: Task, flags: Sequence[str]) -> list:
     items = [
         dbc.Badge(
             task.status.label,
-            color=STATUS_COLORS[task.status],
+            color=task_status_colors()[task.status],  # as the timeline bars
             text_color="dark" if task.status in LIGHT_STATUSES else None,
         ),
         dbc.Badge(f"Priority {priority_label(task.priority)}", color="light", text_color="dark"),
@@ -185,7 +189,7 @@ def badges(task: Task, flags: Sequence[str]) -> list:
     items += [
         dbc.Badge(
             f,
-            color=FLAG_COLORS.get(f, theme.MUTED),
+            color=flag_colors().get(f, theme.MUTED),
             text_color="dark" if f == FLAG_AT_RISK else None,
         )
         for f in flags

@@ -17,7 +17,11 @@ logger = logging.getLogger(__name__)
 BASE_VERSION = 1
 
 # version -> SQL that upgrades from (version - 1) to version.
-MIGRATIONS: dict[int, str] = {}
+MIGRATIONS: dict[int, str] = {
+    # 2: colour theme (a ColorTheme value; checked by the settings service, so new
+    # themes need no migration).
+    2: "ALTER TABLE app_settings ADD COLUMN theme TEXT NOT NULL DEFAULT 'no309';",
+}
 
 
 def latest_version() -> int:

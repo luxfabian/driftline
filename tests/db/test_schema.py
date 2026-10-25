@@ -13,6 +13,7 @@ from driftline.db.migrations import (
     apply_migrations,
     current_version,
     ensure_settings_row,
+    latest_version,
     read_schema_sql,
 )
 from driftline.domain.enums import (
@@ -57,10 +58,10 @@ class SchemaCreationTest(unittest.TestCase):
     def test_empty_db_gets_full_schema(self):
         conn = connect(":memory:")
         self.assertIsNone(current_version(conn))
-        self.assertEqual(apply_migrations(conn), 1)
+        self.assertEqual(apply_migrations(conn), latest_version())
         self.assertEqual(_names(conn, "table"), EXPECTED_TABLES)
         self.assertTrue(EXPECTED_INDEXES <= _names(conn, "index"))
-        self.assertEqual(current_version(conn), 1)
+        self.assertEqual(current_version(conn), latest_version())
 
     def test_foreign_keys_still_on_after_schema_script(self):
         conn = memory_db()
@@ -69,7 +70,7 @@ class SchemaCreationTest(unittest.TestCase):
     def test_apply_twice_is_idempotent(self):
         conn = memory_db()
         insert_task(conn)
-        self.assertEqual(apply_migrations(conn), 1)
+        self.assertEqual(apply_migrations(conn), latest_version())
         self.assertEqual(conn.execute("SELECT count(*) FROM task").fetchone()[0], 1)
 
     def test_settings_row_has_spec_defaults(self):
@@ -89,6 +90,7 @@ class SchemaCreationTest(unittest.TestCase):
             "stale_after_days",
             "backup_keep_count",
             "top_delayed_n",
+            "theme",
         ):
             self.assertEqual(row[name], getattr(defaults, name), name)
 
@@ -109,20 +111,33 @@ class SchemaCreationTest(unittest.TestCase):
 class MigrationMechanismTest(unittest.TestCase):
     def test_pending_migration_runs_and_bumps_version(self):
         conn = memory_db()
+        nxt = latest_version() + 1
         sql = "ALTER TABLE task ADD COLUMN extra TEXT;\nCREATE INDEX ix_extra ON task (extra);"
-        with mock.patch.dict(migrations.MIGRATIONS, {2: sql}):
-            self.assertEqual(apply_migrations(conn), 2)
+        with mock.patch.dict(migrations.MIGRATIONS, {nxt: sql}):
+            self.assertEqual(apply_migrations(conn), nxt)
         self.assertIn("extra", _columns(conn, "task"))
-        self.assertEqual(current_version(conn), 2)
+        self.assertEqual(current_version(conn), nxt)
 
     def test_failing_migration_rolls_back_completely(self):
         conn = memory_db()
+        before = current_version(conn)
         sql = "ALTER TABLE task ADD COLUMN extra TEXT;\nTHIS IS NOT SQL;"
-        with mock.patch.dict(migrations.MIGRATIONS, {2: sql}):
+        with mock.patch.dict(migrations.MIGRATIONS, {before + 1: sql}):
             with self.assertRaises(sqlite3.Error):
                 apply_migrations(conn)
         self.assertNotIn("extra", _columns(conn, "task"))
+        self.assertEqual(current_version(conn), before)
+
+
+class ThemeMigrationTest(unittest.TestCase):
+    def test_version_1_database_gets_theme_column_with_default(self):
+        conn = connect(":memory:")
+        conn.executescript(migrations.read_schema_sql())  # a database as version 1 left it
+        conn.execute("UPDATE app_settings SET weekly_hours = 32")
         self.assertEqual(current_version(conn), 1)
+        self.assertGreaterEqual(apply_migrations(conn), 2)
+        row = conn.execute("SELECT weekly_hours, theme FROM app_settings").fetchone()
+        self.assertEqual((row["weekly_hours"], row["theme"]), (32, "no309"))
 
 
 class ConstraintTest(unittest.TestCase):

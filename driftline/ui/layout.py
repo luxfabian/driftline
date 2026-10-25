@@ -14,7 +14,7 @@ import dash_bootstrap_components as dbc
 from dash import dcc, html
 
 from driftline.domain.filters import Filter
-from driftline.ui import ids
+from driftline.ui import ids, theme
 from driftline.ui.components import confirm_modal, task_detail, task_form
 from driftline.ui.state import filter_to_store
 
@@ -60,7 +60,9 @@ def toast() -> dbc.Toast:
     )  # fmt: skip
 
 
-def shell(pages: Sequence[ModuleType]) -> html.Div:
+def shell(pages: Sequence[ModuleType], palette: theme.Palette | None = None) -> html.Div:
+    """The page frame. Its theme class selects the colours of ``assets/themes.css``."""
+    palette = palette or theme.active()
     return html.Div(
         [
             *stores(),
@@ -70,7 +72,10 @@ def shell(pages: Sequence[ModuleType]) -> html.Div:
             confirm_modal.layout(),
             task_form.modal(),
             task_detail.layout(),
-        ]
+            dcc.Store(id=ids.THEME_RELOAD, storage_type="memory"),
+        ],
+        id=ids.SHELL,
+        className=theme.shell_class(palette),
     )
 
 

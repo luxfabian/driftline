@@ -6,6 +6,8 @@ from dataclasses import dataclass
 
 # --- shell -----------------------------------------------------------------------
 URL = "url"
+SHELL = "pm-shell"  # carries the theme class
+THEME_RELOAD = "theme-reload"  # set to a theme key after a theme change -> page reload
 NEW_TASK_BUTTON = "new-task-button"
 
 # --- global stores ---------------------------------------------------------------
@@ -169,6 +171,7 @@ SET_BACKUP_KEEP = "set-backup-keep"
 SET_TOP_N = "set-top-n"
 SET_DAILY_NOTE = "set-daily-note"
 SET_SAVE = "set-save"
+SET_THEME = "set-theme"
 ABS_START = "abs-start"
 ABS_END = "abs-end"
 ABS_NOTE = "abs-note"

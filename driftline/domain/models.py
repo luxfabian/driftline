@@ -129,6 +129,7 @@ class Settings:  # app_settings, data_model_spec §3.9
     stale_after_days: int = 14
     backup_keep_count: int = 10
     top_delayed_n: int = 10
+    theme: str = "no309"  # a ColorTheme value [schema version 2]
 
 
 @dataclass(frozen=True)

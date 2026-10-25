@@ -2,18 +2,22 @@
 
 from __future__ import annotations
 
+import logging
+import sqlite3
 from pathlib import Path
 
 import dash
 from dash import Dash, Input, Output
 
 from driftline.services import Services
-from driftline.ui import ids
+from driftline.ui import ids, theme
 from driftline.ui.components import confirm_modal, filter_bar, task_detail, task_form
 from driftline.ui.feedback import on_callback_error
 from driftline.ui.formatting import lookups
 from driftline.ui.layout import shell
 from driftline.ui.pages import dashboard, milestones, settings, tasks, timeline, workload
+
+logger = logging.getLogger(__name__)
 
 # Navbar order (architecture §9.1).
 PAGES = (dashboard, tasks, timeline, milestones, workload, settings)
@@ -44,9 +48,15 @@ def create_app(services: Services) -> Dash:
             order=order,
             layout=page.layout,
         )
-    app.layout = shell(PAGES)
+    app.layout = lambda: _shell(services)  # per page load: picks up the theme setting
 
     _register_lookups(app, services)
+    # A theme change reloads the page so the shell and every figure pick it up.
+    app.clientside_callback(
+        "function(key) { if (key) { window.location.reload(); } }",
+        Input(ids.THEME_RELOAD, "data"),
+        prevent_initial_call=True,
+    )
     filter_bar.register_callbacks(app, services)
     confirm_modal.register_callbacks(app, services)
     task_form.register_callbacks(app, services)
@@ -55,6 +65,15 @@ def create_app(services: Services) -> Dash:
         if hasattr(page, "register_callbacks"):
             page.register_callbacks(app, services)
     return app
+
+
+def _shell(services: Services):
+    try:
+        key = services.settings.get().theme
+    except sqlite3.Error:  # unreadable database: the callbacks report it, the shell still loads
+        logger.exception("Could not read the colour theme; using the default")
+        key = None
+    return shell(PAGES, theme.use(key))
 
 
 def _register_lookups(app: Dash, services: Services) -> None:

@@ -1,6 +1,6 @@
 """Settings page [WL-01, WL-07, WL-08, NFR-03, NFR-08, DAT-08] (architecture §9.3).
 
-Capacity and thresholds, absences, public holidays, export, CSV import and
+Colour theme, capacity and thresholds, absences, public holidays, export, CSV import and
 archived items (restore / delete permanently, which asks for confirmation).
 """
 
@@ -18,7 +18,7 @@ from driftline.calc.calendar import daily_capacity
 from driftline.domain.models import Absence, Holiday, Milestone, Settings, Task
 from driftline.services import Services
 from driftline.services.import_service import ImportResult
-from driftline.ui import ids
+from driftline.ui import ids, theme
 from driftline.ui.actions import Outcome
 from driftline.ui.feedback import NO_FEEDBACK, feedback, run, write_outputs
 from driftline.ui.layout import page_header
@@ -82,6 +82,28 @@ def capacity_note(hours, weekdays, plannable_pct) -> str:
             f"{per_day * len(s.working_weekdays):.1f} h per full week")  # fmt: skip
 
 
+def theme_options() -> list[dict[str, Any]]:
+    """One option per Wada theme: the combination as printed, its number and name."""
+    return [
+        {
+            "label": html.Div(
+                [
+                    html.Div(
+                        [html.Span(className="pm-swatch", style={"background": hex_color},
+                                   title=name) for name, hex_color in p.wada],
+                        className="pm-swatches",
+                    ),
+                    html.Div(p.name, className="pm-theme-name"),
+                    html.Div(f"No. {p.number}: " + ", ".join(name for name, _ in p.wada),
+                             className="pm-hint"),
+                ]
+            ),
+            "value": p.key.value,
+        }
+        for p in theme.THEMES.values()
+    ]  # fmt: skip
+
+
 def export_name(now: datetime, extension: str) -> str:
     return f"driftline_export_{now:%Y%m%d_%H%M}.{extension}"
 
@@ -103,6 +125,16 @@ def import_summary(result: ImportResult) -> html.Div:
 
 
 def layout(**_kwargs) -> html.Div:
+    appearance = _card(
+        "Colour theme",
+        [
+            html.P("Colour combinations from Sanzo Wada's A Dictionary of Color "
+                   "Combinations. The page reloads to apply a theme.", className="small"),
+            dbc.RadioItems(id=ids.SET_THEME, options=theme_options(),
+                           inputClassName="btn-check", labelClassName="pm-theme-option",
+                           labelCheckedClassName="active", className="pm-theme-picker"),
+        ],
+    )  # fmt: skip
     capacity = _card(
         "Capacity and thresholds",
         [
@@ -230,7 +262,7 @@ def layout(**_kwargs) -> html.Div:
             dbc.Row(
                 [
                     dbc.Col([capacity, absences, holidays], lg=6),
-                    dbc.Col([data, baselines, archive], lg=6),
+                    dbc.Col([appearance, data, baselines, archive], lg=6),
                 ],
                 className="g-3",
             ),
@@ -339,6 +371,7 @@ def register_callbacks(app: Dash, services: Services) -> None:
         Output(ids.HOL_LIST, "children"),
         Output(ids.ARCHIVED_TASKS, "children"),
         Output(ids.ARCHIVED_MILESTONES, "children"),
+        Output(ids.SET_THEME, "value"),
         Input(ids.DATA_VERSION, "data"),
     )
     def refresh(_version):
@@ -350,6 +383,7 @@ def register_callbacks(app: Dash, services: Services) -> None:
             holiday_rows(holidays),
             archived_rows([t for t in snap.tasks if t.is_archived], "task"),
             archived_rows([m for m in snap.milestones if m.is_archived], "milestone"),
+            snap.settings.theme,
         )
 
     @app.callback(
@@ -374,6 +408,25 @@ def register_callbacks(app: Dash, services: Services) -> None:
         *form, version = values
         action = {"kind": "update_settings", "values": settings_values(*form)}
         return run(services, action, version)[1]
+
+    @app.callback(
+        *write_outputs(),
+        Output(ids.THEME_RELOAD, "data"),
+        Input(ids.SET_THEME, "value"),
+        State(ids.DATA_VERSION, "data"),
+        prevent_initial_call=True,
+    )
+    def save_theme(key, version):
+        if not key or key == services.settings.get().theme:
+            return (*NO_FEEDBACK, no_update)  # the value was filled in by refresh
+        outcome, values = run(services, {"kind": "update_settings", "values": {"theme": key}},
+                              version)  # fmt: skip
+        if not outcome.ok:
+            return (*values, no_update)
+        theme.use(key)
+        # No data-version bump: the reload repaints everything, and refreshes
+        # started now would only be cut off by it.
+        return (*NO_FEEDBACK, key)
 
     @app.callback(
         *write_outputs(),

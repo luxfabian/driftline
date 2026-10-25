@@ -7,6 +7,7 @@ from dataclasses import fields, replace
 from datetime import date
 from typing import Any
 
+from driftline.domain.enums import ColorTheme
 from driftline.domain.models import Absence, Holiday, Settings
 from driftline.errors import NotFound, ValidationError
 from driftline.repo import calendar_repo, settings_repo
@@ -79,6 +80,10 @@ class SettingsService(ServiceBase):
 
 
 def _clean(name: str, value: Any) -> Any:
+    if name == "theme":
+        if value not in {t.value for t in ColorTheme}:
+            raise ValidationError("UI-THEME", f"Unknown colour theme: {value!r}.")
+        return str(value)
     if name == "working_weekdays":
         return _weekdays(value)
     if name in {"weekly_hours", "plannable_fraction", "load_green_max", "load_amber_max"}:

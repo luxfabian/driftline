@@ -29,8 +29,9 @@ def callback_ids(app: dash.Dash) -> set[str]:
     """IDs referenced by any callback output, input or state."""
     used: set[str] = set()
     for cb in app._callback_list:
-        outputs = cb["output"].strip(".").split("...")
-        used.update(o.split("@")[0].rsplit(".", 1)[0] for o in outputs)
+        if not cb.get("no_output"):  # callbacks without outputs get a generated dummy id
+            outputs = cb["output"].strip(".").split("...")
+            used.update(o.split("@")[0].rsplit(".", 1)[0] for o in outputs)
         used.update(dep["id"] for dep in cb["inputs"] + cb["state"])
     return {i for i in used if not i.startswith("{")}  # pattern-matching IDs are JSON
 
@@ -51,7 +52,7 @@ class AppSmokeTest(unittest.TestCase):
         cls._tmp.cleanup()
 
     def all_ids(self) -> list[str]:
-        result = component_ids(self.app.layout)
+        result = component_ids(self.app.layout())
         for page in PAGES:
             result += component_ids(page.layout())
         return result
@@ -69,7 +70,7 @@ class AppSmokeTest(unittest.TestCase):
 
     def test_no_duplicate_ids(self):
         """Only one page is in the browser at a time: check the shell plus each page."""
-        shell = component_ids(self.app.layout)
+        shell = component_ids(self.app.layout())
         for page in PAGES:
             with self.subTest(page=page.NAME):
                 ids_on_screen = shell + component_ids(page.layout())

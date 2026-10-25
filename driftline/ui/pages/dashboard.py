@@ -91,33 +91,26 @@ def dashboard_data(snap: Snapshot, f: Filter, today: date, now: datetime) -> Das
 
 
 def layout(**_kwargs) -> html.Div:
+    """KPIs, the day plan across the page, the most delayed items, warnings last."""
     return html.Div(
         [
             page_header(NAME, ids.DASH_FILTER_TEXT),
             html.Div(id=ids.DASH_KPIS, className="mb-4"),
+            dbc.Card(
+                [
+                    dbc.CardHeader(id=ids.DASH_DAY_TITLE, className="fw-semibold"),
+                    dbc.CardBody(id=ids.DASH_DAY),
+                ],
+                className="mb-3",
+            ),
+            _card("Most delayed", ids.DASH_DELAYED),
             dbc.Row(
                 [
-                    dbc.Col(
-                        dbc.Card(
-                            [
-                                dbc.CardHeader(id=ids.DASH_DAY_TITLE, className="fw-semibold"),
-                                dbc.CardBody(id=ids.DASH_DAY),
-                            ],
-                            className="mb-3",
-                        ),
-                        lg=7,
-                    ),
-                    dbc.Col(
-                        [
-                            _card("Milestone warnings", ids.DASH_MS_WARNINGS),
-                            _card("Dependency warnings", ids.DASH_DEP_WARNINGS),
-                        ],
-                        lg=5,
-                    ),
+                    dbc.Col(_card("Milestone warnings", ids.DASH_MS_WARNINGS), lg=6),
+                    dbc.Col(_card("Dependency warnings", ids.DASH_DEP_WARNINGS), lg=6),
                 ],
                 className="g-3",
             ),
-            _card("Most delayed", ids.DASH_DELAYED),
         ]
     )
 
@@ -301,13 +294,14 @@ def priority_bar(plan: DayPlan, tasks: dict[int, Task]) -> html.Div:
         if not item.blocked:
             by_priority[tasks[item.task_id].priority] += item.hours
     scale = max(plan.workable_h, plan.capacity_h, 1e-9)
+    colors = charts.priority_colors()
     segments = [
         html.Div(
             className="pm-daybar-seg",
             title=f"{p.label}: {h:.1f} h",
             style={
                 "width": f"{100 * h / scale:.2f}%",
-                "background": charts.PRIORITY_COLORS[p.label],
+                "background": colors[p.label],
             },
         )
         for p, h in by_priority.items()
@@ -321,9 +315,7 @@ def priority_bar(plan: DayPlan, tasks: dict[int, Task]) -> html.Div:
     legend = [
         html.Span(
             [
-                html.Span(
-                    className="pm-dot", style={"background": charts.PRIORITY_COLORS[p.label]}
-                ),
+                html.Span(className="pm-dot", style={"background": colors[p.label]}),
                 f"{p.label} {h:.1f} h",
             ],
             className="me-3",
@@ -373,6 +365,7 @@ def day_section(
         className="mb-2",
     )
 
+    colors = charts.priority_colors()
     rows, cut_done, rank = [], False, 0
     for item in plan.items:
         if item.blocked:
@@ -398,7 +391,7 @@ def day_section(
                         [
                             html.Span(
                                 className="pm-dot",
-                                style={"background": charts.PRIORITY_COLORS[t.priority.label]},
+                                style={"background": colors[t.priority.label]},
                             ),
                             t.priority.label,
                         ]

@@ -22,6 +22,11 @@ class SettingsTest(ServiceTestCase):
         self.assertEqual(new.working_weekdays, (1, 2, 3, 5))
         self.assertEqual(self.svc.settings.get(), new)
 
+    def test_theme_is_stored(self):
+        self.assertEqual(self.svc.settings.get().theme, "no309")
+        self.svc.settings.update(theme="no278")
+        self.assertEqual(self.svc.settings.get().theme, "no278")
+
     def test_invalid_values_rejected_and_nothing_written(self):
         bad = [
             {"weekly_hours": 0},
@@ -37,6 +42,7 @@ class SettingsTest(ServiceTestCase):
             {"load_green_max": 1.2, "load_amber_max": 1.0},
             {"load_green_max": 0},
             {"colour": "blue"},
+            {"theme": "neon"},
         ]
         for values in bad:
             with self.assertRaises(ValidationError, msg=values):

@@ -62,7 +62,18 @@ class ChangeKind(StrEnum):
     RESTORE = "restore"
 
 
+class ColorTheme(StrEnum):  # app_settings.theme (schema version 2)
+    """Colour themes, named by their combination in Wada's dictionary (see ui/theme.py)."""
+
+    NO309 = "no309"
+    NO278 = "no278"
+    NO134 = "no134"
+    NO328 = "no328"
+    NO253 = "no253"
+
+
 DEFAULT_TASK_STATUS = TaskStatus.PLANNED
 DEFAULT_PRIORITY = Priority.MEDIUM
 DEFAULT_MILESTONE_STATUS = MilestoneStatus.OPEN
 DEFAULT_COMMENT_KIND = CommentKind.NOTE
+DEFAULT_THEME = ColorTheme.NO309

@@ -11,6 +11,7 @@ from driftline.clock import FixedClock
 from driftline.config import load_config
 from driftline.db.backup import list_backups
 from driftline.db.connection import connect
+from driftline.db.migrations import latest_version
 from tests.helpers import T0
 
 
@@ -28,7 +29,9 @@ class StartupTest(unittest.TestCase):
         self.assertTrue(db.exists())
         self.assertEqual(list_backups(self.config.backup_dir), [])
         conn = connect(db)
-        self.assertEqual(conn.execute("SELECT version FROM schema_version").fetchone()[0], 1)
+        self.assertEqual(
+            conn.execute("SELECT version FROM schema_version").fetchone()[0], latest_version()
+        )
         self.assertEqual(conn.execute("SELECT count(*) FROM app_settings").fetchone()[0], 1)
         conn.close()
 

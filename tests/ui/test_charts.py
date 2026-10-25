@@ -9,7 +9,7 @@ import pandas as pd
 import plotly.graph_objects as go
 
 from driftline.domain.enums import TaskStatus
-from driftline.ui import charts
+from driftline.ui import charts, theme
 from tests.factories import TODAY, D, make_milestone, make_task
 
 FILTER_TEXT = "Labels: work (any)"
@@ -124,7 +124,7 @@ class WorkloadChartsTest(unittest.TestCase):
         self.assertEqual(fig.layout.barmode, "stack")
         self.assertEqual(list(fig.data[0].y), [5, 10, 15])  # min(demand, capacity)
         self.assertEqual(list(fig.data[1].y), [5, 0, 5])  # shortfall on top
-        self.assertEqual(fig.data[1].marker.color, charts.SHORTFALL_COLOR)
+        self.assertEqual(fig.data[1].marker.color, theme.active().blocked)
         self.assertIn(FILTER_TEXT, subtitle(fig))
         self.assertTrue(any("5.0 h" in a.text for a in fig.layout.annotations))
 
@@ -167,17 +167,17 @@ class WorkloadChartsTest(unittest.TestCase):
 class ColorsTest(unittest.TestCase):
     def test_categorical_fixed_order_and_other(self):
         few = charts.categorical_colors([3, 1, 2])
-        self.assertEqual(list(few.values()), list(charts.CATEGORICAL[:3]))
-        all_slots = charts.categorical_colors(range(len(charts.CATEGORICAL)))
-        self.assertEqual(list(all_slots.values()), list(charts.CATEGORICAL))
+        self.assertEqual(list(few.values()), list(charts.categorical()[:3]))
+        all_slots = charts.categorical_colors(range(len(charts.categorical())))
+        self.assertEqual(list(all_slots.values()), list(charts.categorical()))
         many = charts.categorical_colors(range(10))
         self.assertEqual(
-            len(set(many.values()) - {charts.OTHER_COLOR}), len(charts.CATEGORICAL) - 1
+            len(set(many.values()) - {charts.OTHER_COLOR}), len(charts.categorical()) - 1
         )
         self.assertEqual(many[9], charts.OTHER_COLOR)
 
     def test_status_colors_cover_every_status(self):
-        self.assertEqual(set(charts.TASK_STATUS_COLORS), set(TaskStatus))
+        self.assertEqual(set(charts.task_status_colors()), set(TaskStatus))
 
 
 if __name__ == "__main__":
